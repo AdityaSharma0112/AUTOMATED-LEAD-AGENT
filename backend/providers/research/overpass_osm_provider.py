@@ -20,6 +20,12 @@ class OverpassOSMProvider(ResearchProviderBase):
     OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 
     CATEGORY_MAPPINGS = {
+        "garage": ['["shop"="car_repair"]', '["amenity"="car_repair"]', '["shop"="car"]', '["craft"="mechanic"]', '["shop"="tyres"]', '["shop"="motorcycle"]'],
+        "car repair": ['["shop"="car_repair"]', '["amenity"="car_repair"]', '["shop"="car"]', '["craft"="mechanic"]'],
+        "auto": ['["shop"="car_repair"]', '["shop"="car_parts"]', '["shop"="car"]', '["amenity"="car_repair"]', '["craft"="mechanic"]'],
+        "mechanic": ['["shop"="car_repair"]', '["amenity"="car_repair"]', '["craft"="mechanic"]'],
+        "sweet": ['["shop"="confectionery"]', '["shop"="pastry"]', '["shop"="bakery"]', '["shop"="deli"]', '["amenity"="cafe"]'],
+        "bakery": ['["shop"="bakery"]', '["shop"="pastry"]', '["shop"="confectionery"]'],
         "general store": [
             '["shop"="general"]', '["shop"="convenience"]', '["shop"="supermarket"]', '["shop"="grocery"]',
             '["shop"="kiosk"]', '["shop"="dairy"]', '["shop"="greengrocer"]', '["shop"="food"]',
@@ -31,18 +37,26 @@ class OverpassOSMProvider(ResearchProviderBase):
             '["shop"="greengrocer"]', '["shop"="dairy"]', '["shop"="food"]', '["shop"="spices"]'
         ],
         "supermarket": ['["shop"="supermarket"]', '["shop"="department_store"]', '["shop"="convenience"]'],
-        "car repair": ['["shop"="car_repair"]', '["amenity"="car_repair"]', '["shop"="car"]', '["craft"="mechanic"]'],
-        "mechanic": ['["shop"="car_repair"]', '["amenity"="car_repair"]', '["craft"="mechanic"]'],
-        "plumber": ['["craft"="plumber"]', '["shop"="trade"]', '["shop"="hardware"]'],
-        "electrician": ['["craft"="electrician"]', '["shop"="electrical"]', '["shop"="electronics"]'],
+        "store": ['["shop"="general"]', '["shop"="convenience"]', '["shop"="supermarket"]', '["shop"="retail"]'],
+        "shop": ['["shop"="general"]', '["shop"="convenience"]', '["shop"="retail"]', '["shop"="kiosk"]'],
+        "cloth": ['["shop"="clothes"]', '["shop"="fashion"]', '["shop"="tailor"]', '["shop"="boutique"]', '["shop"="shoes"]', '["shop"="fabric"]'],
+        "salon": ['["shop"="hairdresser"]', '["shop"="beauty"]', '["amenity"="spa"]', '["shop"="massage"]'],
+        "beauty": ['["shop"="beauty"]', '["shop"="hairdresser"]', '["amenity"="spa"]'],
+        "electronics": ['["shop"="electronics"]', '["shop"="mobile_phone"]', '["shop"="computer"]', '["shop"="appliance"]'],
+        "mobile": ['["shop"="mobile_phone"]', '["shop"="electronics"]', '["shop"="telecommunication"]'],
         "pharmacy": ['["amenity"="pharmacy"]', '["healthcare"="pharmacy"]', '["shop"="chemist"]', '["shop"="medical_supply"]'],
+        "chemist": ['["amenity"="pharmacy"]', '["healthcare"="pharmacy"]', '["shop"="chemist"]'],
         "dentist": ['["amenity"="dentist"]', '["amenity"="clinic"]', '["healthcare"="dentist"]'],
+        "doctor": ['["amenity"="doctors"]', '["amenity"="clinic"]', '["amenity"="hospital"]', '["healthcare"="doctor"]'],
         "clinic": ['["amenity"="clinic"]', '["amenity"="doctors"]', '["amenity"="hospital"]'],
+        "hospital": ['["amenity"="hospital"]', '["amenity"="clinic"]'],
         "restaurant": ['["amenity"="restaurant"]', '["amenity"="cafe"]', '["amenity"="fast_food"]'],
         "cafe": ['["amenity"="cafe"]', '["amenity"="restaurant"]'],
-        "gym": ['["leisure"="fitness_centre"]', '["leisure"="sports_centre"]'],
+        "dhaba": ['["amenity"="restaurant"]', '["amenity"="fast_food"]'],
         "hotel": ['["tourism"="hotel"]', '["tourism"="guest_house"]'],
-        "bakery": ['["shop"="bakery"]', '["shop"="pastry"]', '["shop"="confectionery"]'],
+        "gym": ['["leisure"="fitness_centre"]', '["leisure"="sports_centre"]'],
+        "plumber": ['["craft"="plumber"]', '["shop"="trade"]', '["shop"="hardware"]'],
+        "electrician": ['["craft"="electrician"]', '["shop"="electrical"]', '["shop"="electronics"]'],
         "hardware": ['["shop"="hardware"]', '["shop"="doityourself"]', '["shop"="trade"]'],
     }
 

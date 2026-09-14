@@ -476,9 +476,9 @@ class GoogleMapsProvider(ResearchProviderBase):
         }
         clean_loc = location.replace(", Himachal Pradesh", "").replace(", India", "").strip()
         search_queries = [
-            f"{category} in {clean_loc} Himachal Pradesh phone address",
-            f"top {category} in {clean_loc} Kangra Dharamshala",
-            f"{category} stores near {clean_loc} Chowk"
+            f"{category} in {clean_loc} phone contact address",
+            f"top {category} in {clean_loc} reviews rating",
+            f"{category} stores near {clean_loc} market"
         ]
 
         raw_snippets = []

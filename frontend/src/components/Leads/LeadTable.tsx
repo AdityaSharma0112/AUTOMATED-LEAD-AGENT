@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Search,
   Globe,
@@ -18,7 +18,15 @@ import {
   Building2,
   MapPin,
   TrendingUp,
-  Trash2
+  Trash2,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  Layers,
+  Filter,
+  RotateCcw,
+  Sparkles
 } from 'lucide-react';
 import { Lead } from '../../types/lead';
 
@@ -42,26 +50,40 @@ export const LeadTable: React.FC<LeadTableProps> = ({
   isLoading,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedArea, setSelectedArea] = useState('all');
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [selectedCity, setSelectedCity] = useState('all');
   const [selectedWebsiteStatus, setSelectedWebsiteStatus] = useState('all');
   const [minScore, setMinScore] = useState(0);
   const [approvedOnly, setApprovedOnly] = useState(false);
-  const [sortField, setSortField] = useState<'lead_score' | 'rating' | 'review_count' | 'business_name'>('lead_score');
+  const [sortField, setSortField] = useState<'lead_score' | 'rating' | 'review_count' | 'business_name' | 'city'>('lead_score');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [viewMode, setViewMode] = useState<'table' | 'grouped'>('table');
 
-  // Categories & Cities for filters
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  // Extract distinct areas & localities with counts
+  const areaCounts = useMemo(() => {
+    const map = new Map<string, number>();
+    leads.forEach((l) => {
+      const area = (l.locality || l.city || 'Other Area').trim();
+      map.set(area, (map.get(area) || 0) + 1);
+    });
+    return Array.from(map.entries()).sort((a, b) => b[1] - a[1]);
+  }, [leads]);
+
+  // Extract distinct categories with counts
   const categories = useMemo(() => {
     const set = new Set<string>();
     leads.forEach((l) => l.category && set.add(l.category));
-    return Array.from(set);
+    return Array.from(set).sort();
   }, [leads]);
 
-  const cities = useMemo(() => {
-    const set = new Set<string>();
-    leads.forEach((l) => l.city && set.add(l.city));
-    return Array.from(set);
-  }, [leads]);
+  // Reset pagination to page 1 whenever filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedArea, selectedCategory, selectedWebsiteStatus, minScore, approvedOnly, pageSize]);
 
   // Filtered & Sorted Leads
   const filteredLeads = useMemo(() => {
@@ -71,13 +93,22 @@ export const LeadTable: React.FC<LeadTableProps> = ({
           const s = searchTerm.toLowerCase();
           const match =
             lead.business_name.toLowerCase().includes(s) ||
-            lead.phone.toLowerCase().includes(s) ||
-            lead.city.toLowerCase().includes(s) ||
-            lead.category.toLowerCase().includes(s);
+            (lead.phone && lead.phone.toLowerCase().includes(s)) ||
+            (lead.city && lead.city.toLowerCase().includes(s)) ||
+            (lead.locality && lead.locality.toLowerCase().includes(s)) ||
+            (lead.category && lead.category.toLowerCase().includes(s));
           if (!match) return false;
         }
+
+        if (selectedArea !== 'all') {
+          const area = (lead.locality || lead.city || '').toLowerCase();
+          const target = selectedArea.toLowerCase();
+          if (!area.includes(target) && !(lead.city || '').toLowerCase().includes(target)) {
+            return false;
+          }
+        }
+
         if (selectedCategory !== 'all' && lead.category !== selectedCategory) return false;
-        if (selectedCity !== 'all' && lead.city !== selectedCity) return false;
         if (selectedWebsiteStatus !== 'all' && lead.website_status !== selectedWebsiteStatus) return false;
         if (lead.lead_score < minScore) return false;
         if (approvedOnly && !lead.calling_approved) return false;
@@ -92,7 +123,37 @@ export const LeadTable: React.FC<LeadTableProps> = ({
         if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
         return 0;
       });
-  }, [leads, searchTerm, selectedCategory, selectedCity, selectedWebsiteStatus, minScore, approvedOnly, sortField, sortDirection]);
+  }, [leads, searchTerm, selectedArea, selectedCategory, selectedWebsiteStatus, minScore, approvedOnly, sortField, sortDirection]);
+
+  // Pagination calculations
+  const totalItems = filteredLeads.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const startIndex = (currentPage - 1) * pageSize;
+  const paginatedLeads = useMemo(() => {
+    return filteredLeads.slice(startIndex, startIndex + pageSize);
+  }, [filteredLeads, startIndex, pageSize]);
+
+  // Area-wise grouping for grouped view
+  const groupedLeads = useMemo(() => {
+    const groups: { [key: string]: Lead[] } = {};
+    filteredLeads.forEach((l) => {
+      const areaKey = (l.locality || l.city || 'Other Area').trim();
+      if (!groups[areaKey]) groups[areaKey] = [];
+      groups[areaKey].push(l);
+    });
+    return groups;
+  }, [filteredLeads]);
+
+  const hasActiveFilters = searchTerm || selectedArea !== 'all' || selectedCategory !== 'all' || selectedWebsiteStatus !== 'all' || minScore > 0 || approvedOnly;
+
+  const handleResetFilters = () => {
+    setSearchTerm('');
+    setSelectedArea('all');
+    setSelectedCategory('all');
+    setSelectedWebsiteStatus('all');
+    setMinScore(0);
+    setApprovedOnly(false);
+  };
 
   const renderWebsiteStatusBadge = (status: string, confidence: number, url: string) => {
     const pct = Math.round((confidence || 0.5) * 100);
@@ -144,8 +205,8 @@ export const LeadTable: React.FC<LeadTableProps> = ({
 
   return (
     <div className="glass-panel" style={{ padding: '24px' }}>
-      {/* Header & Stats */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+      {/* Header & Stats Bar */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px', flexWrap: 'wrap', gap: '12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <div style={{
             padding: '8px',
@@ -156,26 +217,54 @@ export const LeadTable: React.FC<LeadTableProps> = ({
             <Building2 size={20} />
           </div>
           <div>
-            <h2 style={{ fontSize: '1.15rem', fontWeight: 800 }}>Discovered Leads</h2>
-            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-              Showing {filteredLeads.length} of {leads.length} discovered businesses
+            <h2 style={{ fontSize: '1.15rem', fontWeight: 800, margin: 0 }}>Discovered Business Leads</h2>
+            <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', margin: 0 }}>
+              Showing {totalItems} of {leads.length} discovered businesses
             </p>
           </div>
         </div>
 
-        {/* Quick Stats & Clear button */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        {/* View Switch & Quick Actions */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <div style={{
+            background: 'rgba(0, 0, 0, 0.3)',
+            borderRadius: '8px',
+            border: '1px solid var(--border-subtle)',
+            padding: '2px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '2px',
+          }}>
+            <button
+              onClick={() => setViewMode('table')}
+              className={`btn ${viewMode === 'table' ? 'btn-primary' : 'btn-secondary'}`}
+              style={{ padding: '4px 10px', fontSize: '0.72rem' }}
+            >
+              Table View
+            </button>
+            <button
+              onClick={() => setViewMode('grouped')}
+              className={`btn ${viewMode === 'grouped' ? 'btn-primary' : 'btn-secondary'}`}
+              style={{ padding: '4px 10px', fontSize: '0.72rem', display: 'flex', alignItems: 'center', gap: '4px' }}
+            >
+              <Layers size={12} />
+              <span>Area Wise</span>
+            </button>
+          </div>
+
           <span className="badge badge-warning">
-            {leads.filter((l) => l.website_status === 'likely_absent').length} Without Website
+            {leads.filter((l) => l.website_status === 'likely_absent').length} No Website
           </span>
           <span className="badge badge-success">
             {leads.filter((l) => l.calling_approved).length} Approved
           </span>
+
           {leads.length > 0 && onClearAllLeads && (
             <button
               onClick={onClearAllLeads}
               className="btn btn-secondary"
-              style={{ fontSize: '0.75rem', padding: '4px 10px', color: '#f87171' }}
+              style={{ fontSize: '0.75rem', padding: '5px 10px', color: '#f87171' }}
+              title="Delete all leads and start fresh"
             >
               <Trash2 size={13} />
               <span>Clear All</span>
@@ -184,14 +273,71 @@ export const LeadTable: React.FC<LeadTableProps> = ({
         </div>
       </div>
 
-      {/* Filter Toolbar */}
+      {/* AREA-WISE HORIZONTAL PILLS STRIP */}
+      {areaCounts.length > 0 && (
+        <div style={{
+          marginBottom: '16px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          overflowX: 'auto',
+          paddingBottom: '6px',
+          scrollbarWidth: 'thin',
+        }}>
+          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <MapPin size={13} color="var(--accent-primary)" />
+            <span>AREAS:</span>
+          </span>
+
+          <button
+            onClick={() => setSelectedArea('all')}
+            style={{
+              padding: '4px 12px',
+              borderRadius: '16px',
+              fontSize: '0.75rem',
+              fontWeight: selectedArea === 'all' ? 700 : 500,
+              background: selectedArea === 'all' ? 'var(--accent-primary)' : 'rgba(255, 255, 255, 0.04)',
+              color: selectedArea === 'all' ? '#fff' : 'var(--text-secondary)',
+              border: `1px solid ${selectedArea === 'all' ? 'var(--accent-primary)' : 'var(--border-subtle)'}`,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            📍 All Areas ({leads.length})
+          </button>
+
+          {areaCounts.map(([area, count]) => (
+            <button
+              key={area}
+              onClick={() => setSelectedArea(selectedArea === area ? 'all' : area)}
+              style={{
+                padding: '4px 12px',
+                borderRadius: '16px',
+                fontSize: '0.75rem',
+                fontWeight: selectedArea === area ? 700 : 500,
+                background: selectedArea === area ? 'rgba(99, 102, 241, 0.25)' : 'rgba(255, 255, 255, 0.03)',
+                color: selectedArea === area ? '#818cf8' : 'var(--text-primary)',
+                border: `1px solid ${selectedArea === area ? 'rgba(99, 102, 241, 0.6)' : 'var(--border-subtle)'}`,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              📍 {area} ({count})
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* FILTER TOOLBAR */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
-        gap: '12px',
-        marginBottom: '20px',
-        padding: '16px',
-        background: 'rgba(0, 0, 0, 0.2)',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+        gap: '10px',
+        marginBottom: '18px',
+        padding: '14px',
+        background: 'rgba(0, 0, 0, 0.25)',
         borderRadius: 'var(--radius-md)',
         border: '1px solid var(--border-subtle)',
       }}>
@@ -200,7 +346,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
           <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
           <input
             type="text"
-            placeholder="Filter business, phone, city..."
+            placeholder="Search business, phone, area..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             style={{
@@ -215,12 +361,31 @@ export const LeadTable: React.FC<LeadTableProps> = ({
           />
         </div>
 
+        {/* Area / Locality Selector */}
+        <select
+          value={selectedArea}
+          onChange={(e) => setSelectedArea(e.target.value)}
+          style={{
+            padding: '8px 10px',
+            background: 'var(--bg-input)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: '6px',
+            color: 'var(--text-primary)',
+            fontSize: '0.8rem',
+          }}
+        >
+          <option value="all">All Areas ({areaCounts.length})</option>
+          {areaCounts.map(([a, count]) => (
+            <option key={a} value={a}>📍 {a} ({count})</option>
+          ))}
+        </select>
+
         {/* Category */}
         <select
           value={selectedCategory}
           onChange={(e) => setSelectedCategory(e.target.value)}
           style={{
-            padding: '8px 12px',
+            padding: '8px 10px',
             background: 'var(--bg-input)',
             border: '1px solid var(--border-subtle)',
             borderRadius: '6px',
@@ -234,31 +399,12 @@ export const LeadTable: React.FC<LeadTableProps> = ({
           ))}
         </select>
 
-        {/* City */}
-        <select
-          value={selectedCity}
-          onChange={(e) => setSelectedCity(e.target.value)}
-          style={{
-            padding: '8px 12px',
-            background: 'var(--bg-input)',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: '6px',
-            color: 'var(--text-primary)',
-            fontSize: '0.8rem',
-          }}
-        >
-          <option value="all">All Cities ({cities.length})</option>
-          {cities.map((c) => (
-            <option key={c} value={c}>{c}</option>
-          ))}
-        </select>
-
         {/* Website Status */}
         <select
           value={selectedWebsiteStatus}
           onChange={(e) => setSelectedWebsiteStatus(e.target.value)}
           style={{
-            padding: '8px 12px',
+            padding: '8px 10px',
             background: 'var(--bg-input)',
             border: '1px solid var(--border-subtle)',
             borderRadius: '6px',
@@ -275,203 +421,459 @@ export const LeadTable: React.FC<LeadTableProps> = ({
         </select>
 
         {/* Min Score Slider */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.725rem', color: 'var(--text-secondary)' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', justifyContent: 'center' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
             <span>Min Score:</span>
-            <strong>{minScore}+</strong>
+            <strong style={{ color: minScore > 0 ? 'var(--accent-primary)' : 'inherit' }}>{minScore}+</strong>
           </div>
           <input
             type="range"
             min="0"
-            max="95"
+            max="90"
             step="5"
             value={minScore}
             onChange={(e) => setMinScore(Number(e.target.value))}
-            style={{ accentColor: 'var(--accent-primary)', cursor: 'pointer' }}
+            style={{ accentColor: 'var(--accent-primary)', cursor: 'pointer', height: '4px' }}
           />
         </div>
 
-        {/* Approved Only Toggle */}
-        <label style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          fontSize: '0.8rem',
-          cursor: 'pointer',
-          userSelect: 'none',
-          color: 'var(--text-secondary)',
-        }}>
-          <input
-            type="checkbox"
-            checked={approvedOnly}
-            onChange={(e) => setApprovedOnly(e.target.checked)}
-            style={{ accentColor: 'var(--success)', width: '16px', height: '16px', cursor: 'pointer' }}
-          />
-          <span>Approved Only</span>
-        </label>
+        {/* Approved Toggle & Reset */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+          <label style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            fontSize: '0.78rem',
+            cursor: 'pointer',
+            userSelect: 'none',
+            color: 'var(--text-secondary)',
+          }}>
+            <input
+              type="checkbox"
+              checked={approvedOnly}
+              onChange={(e) => setApprovedOnly(e.target.checked)}
+              style={{ accentColor: 'var(--success)', width: '15px', height: '15px', cursor: 'pointer' }}
+            />
+            <span>Approved Only</span>
+          </label>
+
+          {hasActiveFilters && (
+            <button
+              onClick={handleResetFilters}
+              className="btn btn-secondary"
+              style={{ padding: '4px 8px', fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: '4px' }}
+              title="Reset all filters"
+            >
+              <RotateCcw size={11} />
+              <span>Reset</span>
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Leads Table */}
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
-          <thead>
-            <tr style={{
-              borderBottom: '1px solid var(--border-card)',
-              color: 'var(--text-muted)',
-              fontSize: '0.75rem',
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em',
-            }}>
-              <th style={{ padding: '12px 14px' }}>ID & Business</th>
-              <th style={{ padding: '12px 14px' }}>Location</th>
-              <th style={{ padding: '12px 14px' }}>Phone / Contact</th>
-              <th style={{ padding: '12px 14px' }}>Website Status</th>
-              <th style={{ padding: '12px 14px' }}>Reputation</th>
-              <th style={{ padding: '12px 14px' }}>Lead Score</th>
-              <th style={{ padding: '12px 14px', textAlign: 'center' }}>Call Approval</th>
-              <th style={{ padding: '12px 14px', textAlign: 'right' }}>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredLeads.length === 0 ? (
-              <tr>
-                <td colSpan={8} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
-                  {isLoading ? 'Loading leads...' : 'No leads found yet. Type a search query above to discover real businesses.'}
-                </td>
-              </tr>
-            ) : (
-              filteredLeads.map((lead) => (
-                <tr
-                  key={lead.id}
-                  style={{
-                    borderBottom: '1px solid var(--border-subtle)',
-                    transition: 'background 0.15s ease',
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)')}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                >
-                  {/* Business Name & ID */}
-                  <td style={{ padding: '14px' }}>
-                    <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.9rem' }}>
-                      {lead.business_name}
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '3px' }}>
-                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                        {lead.lead_id}
-                      </span>
-                      <span className="badge badge-secondary" style={{ fontSize: '0.65rem' }}>
-                        {lead.category}
-                      </span>
-                    </div>
-                  </td>
+      {/* VIEW MODE: GROUPED BY AREA */}
+      {viewMode === 'grouped' ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+          {Object.keys(groupedLeads).length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+              {isLoading ? 'Loading leads...' : 'No leads match the selected area and filters.'}
+            </div>
+          ) : (
+            Object.entries(groupedLeads).map(([areaName, areaLeads]) => (
+              <div
+                key={areaName}
+                style={{
+                  background: 'rgba(0, 0, 0, 0.25)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-md)',
+                  overflow: 'hidden',
+                }}
+              >
+                {/* Area Group Header */}
+                <div style={{
+                  padding: '10px 16px',
+                  background: 'rgba(99, 102, 241, 0.1)',
+                  borderBottom: '1px solid var(--border-subtle)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <MapPin size={16} color="var(--accent-primary)" />
+                    <span style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--text-primary)' }}>
+                      📍 {areaName}
+                    </span>
+                    <span className="badge badge-info" style={{ fontSize: '0.68rem' }}>
+                      {areaLeads.length} Lead{areaLeads.length === 1 ? '' : 's'}
+                    </span>
+                  </div>
 
-                  {/* Location */}
-                  <td style={{ padding: '14px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--text-secondary)' }}>
-                      <MapPin size={13} color="var(--accent-primary)" />
-                      <span>{lead.locality ? `${lead.locality}, ${lead.city}` : lead.city}</span>
-                    </div>
-                  </td>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    {areaLeads.filter((l) => l.website_status === 'likely_absent').length} Need Website
+                  </div>
+                </div>
 
-                  {/* Phone */}
-                  <td style={{ padding: '14px' }}>
-                    {lead.phone ? (
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontWeight: 600 }}>
-                          <Phone size={12} color="#34d399" />
-                          <span>{lead.phone}</span>
-                        </div>
-                        {lead.contact_person && (
-                          <div style={{ fontSize: '0.725rem', color: 'var(--text-muted)' }}>
-                            {lead.contact_person}
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <span style={{ color: 'var(--text-muted)' }}>—</span>
-                    )}
-                  </td>
-
-                  {/* Website Status */}
-                  <td style={{ padding: '14px' }}>
-                    {renderWebsiteStatusBadge(lead.website_status, lead.website_confidence, lead.website_url)}
-                  </td>
-
-                  {/* Reputation */}
-                  <td style={{ padding: '14px' }}>
-                    {lead.rating ? (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <Star size={13} fill="#fbbf24" color="#fbbf24" />
-                        <span style={{ fontWeight: 700 }}>{lead.rating}</span>
-                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                          ({lead.review_count})
-                        </span>
-                      </div>
-                    ) : (
-                      <span style={{ color: 'var(--text-muted)' }}>—</span>
-                    )}
-                  </td>
-
-                  {/* Lead Score */}
-                  <td style={{ padding: '14px' }}>
-                    {renderScorePill(lead.lead_score)}
-                  </td>
-
-                  {/* Approval Gate Toggle */}
-                  <td style={{ padding: '14px', textAlign: 'center' }}>
-                    <button
-                      onClick={() => onToggleApproval(lead.id, lead.calling_approved)}
-                      className={`btn ${lead.calling_approved ? 'btn-success' : 'btn-secondary'}`}
+                {/* Area Leads Grid */}
+                <div style={{
+                  padding: '12px',
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                  gap: '10px',
+                }}>
+                  {areaLeads.map((lead) => (
+                    <div
+                      key={lead.id}
                       style={{
-                        padding: '4px 10px',
-                        fontSize: '0.75rem',
-                        borderRadius: '20px',
+                        padding: '12px 14px',
+                        background: 'rgba(255, 255, 255, 0.02)',
+                        border: '1px solid rgba(255, 255, 255, 0.06)',
+                        borderRadius: '8px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '8px',
+                        transition: 'all 0.15s ease',
                       }}
-                      title={lead.calling_approved ? "Human calling approval GRANTED" : "Click to APPROVE for calling"}
+                      onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'rgba(99, 102, 241, 0.4)')}
+                      onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.06)')}
                     >
-                      {lead.calling_approved ? (
-                        <>
-                          <Check size={12} />
-                          <span>Approved</span>
-                        </>
-                      ) : (
-                        <span>Approve</span>
-                      )}
-                    </button>
-                  </td>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                        <div>
+                          <div style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--text-primary)' }}>
+                            {lead.business_name}
+                          </div>
+                          <span className="badge badge-secondary" style={{ fontSize: '0.65rem', marginTop: '2px' }}>
+                            {lead.category}
+                          </span>
+                        </div>
+                        {renderScorePill(lead.lead_score)}
+                      </div>
 
-                  {/* Actions */}
-                  <td style={{ padding: '14px', textAlign: 'right' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
-                      {/* Call Button */}
-                      <button
-                        onClick={() => onStartCall(lead)}
-                        className="btn btn-primary"
-                        style={{ padding: '6px 12px', fontSize: '0.75rem' }}
-                        disabled={!lead.calling_approved}
-                        title={lead.calling_approved ? "Start Live Voice Qualification" : "Requires calling approval first"}
-                      >
-                        <PhoneCall size={13} />
-                        <span>Call</span>
-                      </button>
+                      <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <Phone size={12} color="#34d399" />
+                        <span>{lead.phone || 'No phone'}</span>
+                      </div>
 
-                      {/* 360 Profile Button */}
-                      <button
-                        onClick={() => onSelectLead(lead)}
-                        className="btn btn-secondary"
-                        style={{ padding: '6px 10px', fontSize: '0.75rem' }}
-                        title="View Complete 360° Lead Profile"
-                      >
-                        <Eye size={13} />
-                      </button>
+                      <div>
+                        {renderWebsiteStatusBadge(lead.website_status, lead.website_confidence, lead.website_url)}
+                      </div>
+
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        paddingTop: '6px',
+                        borderTop: '1px solid rgba(255, 255, 255, 0.05)',
+                        marginTop: '2px',
+                      }}>
+                        <button
+                          onClick={() => onToggleApproval(lead.id, lead.calling_approved)}
+                          className={`btn ${lead.calling_approved ? 'btn-success' : 'btn-secondary'}`}
+                          style={{ padding: '3px 8px', fontSize: '0.7rem', borderRadius: '12px' }}
+                        >
+                          {lead.calling_approved ? '✓ Approved' : 'Approve'}
+                        </button>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <button
+                            onClick={() => onStartCall(lead)}
+                            className="btn btn-primary"
+                            style={{ padding: '4px 8px', fontSize: '0.7rem' }}
+                            disabled={!lead.calling_approved}
+                          >
+                            <PhoneCall size={11} />
+                            <span>Call</span>
+                          </button>
+                          <button
+                            onClick={() => onSelectLead(lead)}
+                            className="btn btn-secondary"
+                            style={{ padding: '4px 8px', fontSize: '0.7rem' }}
+                          >
+                            <Eye size={11} />
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                  </td>
+                  ))}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      ) : (
+        /* VIEW MODE: PAGINATED FLAT TABLE */
+        <div>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+              <thead>
+                <tr style={{
+                  borderBottom: '1px solid var(--border-card)',
+                  color: 'var(--text-muted)',
+                  fontSize: '0.73rem',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                }}>
+                  <th style={{ padding: '12px 14px' }}>Business Name</th>
+                  <th style={{ padding: '12px 14px' }}>Area / Locality</th>
+                  <th style={{ padding: '12px 14px' }}>Phone / Contact</th>
+                  <th style={{ padding: '12px 14px' }}>Website Status</th>
+                  <th style={{ padding: '12px 14px' }}>Reputation</th>
+                  <th style={{ padding: '12px 14px' }}>Score</th>
+                  <th style={{ padding: '12px 14px', textAlign: 'center' }}>Call Approval</th>
+                  <th style={{ padding: '12px 14px', textAlign: 'right' }}>Actions</th>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+              </thead>
+              <tbody>
+                {paginatedLeads.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+                      {isLoading ? 'Loading leads...' : 'No leads match the selected area and filters.'}
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedLeads.map((lead) => (
+                    <tr
+                      key={lead.id}
+                      style={{
+                        borderBottom: '1px solid var(--border-subtle)',
+                        transition: 'background 0.15s ease',
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)')}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                    >
+                      {/* Business Name & ID */}
+                      <td style={{ padding: '12px 14px' }}>
+                        <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.885rem' }}>
+                          {lead.business_name}
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '3px' }}>
+                          <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                            {lead.lead_id}
+                          </span>
+                          <span className="badge badge-secondary" style={{ fontSize: '0.65rem' }}>
+                            {lead.category}
+                          </span>
+                        </div>
+                      </td>
+
+                      {/* Area / Locality */}
+                      <td style={{ padding: '12px 14px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--text-secondary)' }}>
+                          <MapPin size={13} color="var(--accent-primary)" style={{ flexShrink: 0 }} />
+                          <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                            {lead.locality ? `${lead.locality}, ${lead.city}` : lead.city}
+                          </span>
+                        </div>
+                      </td>
+
+                      {/* Phone */}
+                      <td style={{ padding: '12px 14px' }}>
+                        {lead.phone ? (
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontWeight: 600 }}>
+                              <Phone size={12} color="#34d399" />
+                              <span>{lead.phone}</span>
+                            </div>
+                            {lead.contact_person && (
+                              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                                {lead.contact_person}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <span style={{ color: 'var(--text-muted)' }}>—</span>
+                        )}
+                      </td>
+
+                      {/* Website Status */}
+                      <td style={{ padding: '12px 14px' }}>
+                        {renderWebsiteStatusBadge(lead.website_status, lead.website_confidence, lead.website_url)}
+                      </td>
+
+                      {/* Reputation */}
+                      <td style={{ padding: '12px 14px' }}>
+                        {lead.rating ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <Star size={13} fill="#fbbf24" color="#fbbf24" />
+                            <span style={{ fontWeight: 700 }}>{lead.rating}</span>
+                            <span style={{ fontSize: '0.73rem', color: 'var(--text-muted)' }}>
+                              ({lead.review_count})
+                            </span>
+                          </div>
+                        ) : (
+                          <span style={{ color: 'var(--text-muted)' }}>—</span>
+                        )}
+                      </td>
+
+                      {/* Lead Score */}
+                      <td style={{ padding: '12px 14px' }}>
+                        {renderScorePill(lead.lead_score)}
+                      </td>
+
+                      {/* Approval Gate Toggle */}
+                      <td style={{ padding: '12px 14px', textAlign: 'center' }}>
+                        <button
+                          onClick={() => onToggleApproval(lead.id, lead.calling_approved)}
+                          className={`btn ${lead.calling_approved ? 'btn-success' : 'btn-secondary'}`}
+                          style={{
+                            padding: '4px 10px',
+                            fontSize: '0.72rem',
+                            borderRadius: '16px',
+                          }}
+                          title={lead.calling_approved ? "Human calling approval GRANTED" : "Click to APPROVE for calling"}
+                        >
+                          {lead.calling_approved ? (
+                            <>
+                              <Check size={11} />
+                              <span>Approved</span>
+                            </>
+                          ) : (
+                            <span>Approve</span>
+                          )}
+                        </button>
+                      </td>
+
+                      {/* Actions */}
+                      <td style={{ padding: '12px 14px', textAlign: 'right' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
+                          <button
+                            onClick={() => onStartCall(lead)}
+                            className="btn btn-primary"
+                            style={{ padding: '5px 10px', fontSize: '0.72rem' }}
+                            disabled={!lead.calling_approved}
+                            title={lead.calling_approved ? "Start Live Voice Call" : "Requires calling approval"}
+                          >
+                            <PhoneCall size={12} />
+                            <span>Call</span>
+                          </button>
+
+                          <button
+                            onClick={() => onSelectLead(lead)}
+                            className="btn btn-secondary"
+                            style={{ padding: '5px 8px', fontSize: '0.72rem' }}
+                            title="View Complete 360° Lead Profile"
+                          >
+                            <Eye size={12} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* PAGINATION TOOLBAR */}
+          {totalItems > 0 && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              paddingTop: '16px',
+              marginTop: '12px',
+              borderTop: '1px solid var(--border-subtle)',
+              flexWrap: 'wrap',
+              gap: '12px',
+            }}>
+              {/* Items range & Page size */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                  Showing <strong style={{ color: 'var(--text-primary)' }}>{startIndex + 1}</strong> to <strong style={{ color: 'var(--text-primary)' }}>{Math.min(startIndex + pageSize, totalItems)}</strong> of <strong style={{ color: 'var(--text-primary)' }}>{totalItems}</strong> leads
+                </span>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Per page:</span>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => setPageSize(Number(e.target.value))}
+                    style={{
+                      padding: '4px 8px',
+                      background: 'var(--bg-input)',
+                      border: '1px solid var(--border-subtle)',
+                      borderRadius: '4px',
+                      color: 'var(--text-primary)',
+                      fontSize: '0.75rem',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <option value={10}>10</option>
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Page Navigator Buttons */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <button
+                  onClick={() => setCurrentPage(1)}
+                  disabled={currentPage === 1}
+                  className="btn btn-secondary"
+                  style={{ padding: '4px 8px', fontSize: '0.72rem' }}
+                  title="First Page"
+                >
+                  <ChevronsLeft size={13} />
+                </button>
+                <button
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="btn btn-secondary"
+                  style={{ padding: '4px 8px', fontSize: '0.72rem' }}
+                  title="Previous Page"
+                >
+                  <ChevronLeft size={13} />
+                </button>
+
+                {/* Page number buttons */}
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter((p) => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 2)
+                  .map((p, idx, arr) => (
+                    <React.Fragment key={p}>
+                      {idx > 0 && arr[idx - 1] !== p - 1 && (
+                        <span style={{ padding: '0 4px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>...</span>
+                      )}
+                      <button
+                        onClick={() => setCurrentPage(p)}
+                        style={{
+                          padding: '4px 9px',
+                          borderRadius: '6px',
+                          fontSize: '0.75rem',
+                          fontWeight: currentPage === p ? 700 : 500,
+                          background: currentPage === p ? 'var(--accent-primary)' : 'rgba(255, 255, 255, 0.04)',
+                          color: currentPage === p ? '#fff' : 'var(--text-primary)',
+                          border: `1px solid ${currentPage === p ? 'var(--accent-primary)' : 'var(--border-subtle)'}`,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {p}
+                      </button>
+                    </React.Fragment>
+                  ))}
+
+                <button
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="btn btn-secondary"
+                  style={{ padding: '4px 8px', fontSize: '0.72rem' }}
+                  title="Next Page"
+                >
+                  <ChevronRight size={13} />
+                </button>
+                <button
+                  onClick={() => setCurrentPage(totalPages)}
+                  disabled={currentPage === totalPages}
+                  className="btn btn-secondary"
+                  style={{ padding: '4px 8px', fontSize: '0.72rem' }}
+                  title="Last Page"
+                >
+                  <ChevronsRight size={13} />
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

@@ -33,9 +33,9 @@ class DuckDuckGoProvider(ResearchProviderBase):
 
         clean_loc = location.replace(", Himachal Pradesh", "").replace(", India", "").strip()
         queries = [
-            f"{category} in {clean_loc} Himachal phone contact address",
-            f"top {category} in {clean_loc} Kangra reviews rating",
-            f"{category} stores {clean_loc} Justdial Sulekha"
+            f"{category} in {clean_loc} phone contact address",
+            f"top {category} in {clean_loc} reviews rating",
+            f"{category} shops {clean_loc} Justdial Sulekha"
         ]
 
         raw_snippets = []
