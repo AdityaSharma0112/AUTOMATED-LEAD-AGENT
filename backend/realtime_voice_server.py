@@ -402,8 +402,8 @@ async def handle_twilio_voice_webhook(request: Request):
         "and 1-tap WhatsApp booking with zero commission fees. Am I speaking with the owner or manager?"
     )
 
-    # Sync Opening Turn to Django DB
-    sync_call_turn_to_django(session_id, speaker="agent", text=opening_text, phone=called_phone)
+    # Sync Opening Turn to Django DB in thread
+    await asyncio.to_thread(sync_call_turn_to_django, session_id, "agent", opening_text, called_phone)
 
     next_turn_url = f"{scheme}://{host}/api/calls/twilio/turn?session_id={session_id}"
 
@@ -449,14 +449,14 @@ async def handle_twilio_turn(request: Request, background_tasks: BackgroundTasks
         return HTMLResponse(content=twiml, media_type="application/xml")
 
     # Sync Caller Turn to Django DB
-    sync_call_turn_to_django(session_id, speaker="lead", text=speech_result, phone=phone)
+    await asyncio.to_thread(sync_call_turn_to_django, session_id, "lead", speech_result, phone)
 
     # Generate response via Gemini
     agent_response = await generate_llm_response(speech_result, session_id=session_id or "default")
     print(f" [AI Spoken Reply]: \"{agent_response}\"")
 
     # Sync AI Response Turn to Django DB
-    sync_call_turn_to_django(session_id, speaker="agent", text=agent_response, phone=phone)
+    await asyncio.to_thread(sync_call_turn_to_django, session_id, "agent", agent_response, phone)
 
     is_final = any(w in speech_result.lower() for w in ["bye", "goodbye", "not interested", "stop calling", "remove my number"])
 

@@ -209,3 +209,18 @@ export interface SystemSettings {
   };
   all_settings: Record<string, any>;
 }
+
+export interface AuthUser {
+  id: number | string;
+  email: string;
+  username: string;
+  full_name?: string;
+  leads_count?: number;
+  calls_count?: number;
+}
+
+export interface AuthResponse {
+  token: string;
+  user: AuthUser;
+}
+

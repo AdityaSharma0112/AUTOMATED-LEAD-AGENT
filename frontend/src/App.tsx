@@ -6,10 +6,15 @@ import { LeadDetailModal } from './components/LeadDetail/LeadDetailModal';
 import { AuditStream } from './components/Audit/AuditStream';
 import { SettingsModal } from './components/Settings/SettingsModal';
 import { QuickCallModal } from './components/Leads/QuickCallModal';
-import { Lead, SearchJob, CallSession } from './types/lead';
+import { AuthModal } from './components/Auth/AuthModal';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { Lead, SearchJob } from './types/lead';
 import { api } from './services/api';
+import { Loader2 } from 'lucide-react';
 
-export const App: React.FC = () => {
+const MainWorkspace: React.FC = () => {
+  const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
+
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     return (localStorage.getItem('antigravity_theme') as 'dark' | 'light') || 'dark';
   });
@@ -33,6 +38,8 @@ export const App: React.FC = () => {
   };
 
   const fetchSettingsAndLeads = async () => {
+    if (!isAuthenticated) return;
+    setIsLoadingLeads(true);
     try {
       const settings = await api.getSettings();
       setKillSwitchActive(settings.kill_switch?.active || false);
@@ -47,8 +54,14 @@ export const App: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchSettingsAndLeads();
-  }, []);
+    if (isAuthenticated) {
+      fetchSettingsAndLeads();
+    } else {
+      setLeads([]);
+      setActiveJob(null);
+      setIsLoadingLeads(false);
+    }
+  }, [isAuthenticated, user?.id]);
 
   const handleSearch = async (params: string | { query?: string; city?: string; category?: string; radius_km?: number; website_filter?: string }) => {
     setIsSearching(true);
@@ -118,6 +131,24 @@ export const App: React.FC = () => {
     setLeads(updated);
   };
 
+  if (isAuthLoading) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: 'var(--bg-main, #0b0f19)',
+        color: 'var(--text-primary, #ffffff)',
+        flexDirection: 'column',
+        gap: '16px'
+      }}>
+        <Loader2 size={36} className="animate-spin" color="#6366f1" />
+        <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Loading Workspace...</span>
+      </div>
+    );
+  }
+
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       {/* Top Navigation & Status */}
@@ -154,6 +185,11 @@ export const App: React.FC = () => {
         />
       </main>
 
+      {/* Auth Modal when not logged in */}
+      {!isAuthenticated && (
+        <AuthModal onSuccess={fetchSettingsAndLeads} />
+      )}
+
       {/* Direct AI Quick Call Modal */}
       {showQuickCallModal && (
         <QuickCallModal
@@ -189,5 +225,13 @@ export const App: React.FC = () => {
         />
       )}
     </div>
+  );
+};
+
+export const App: React.FC = () => {
+  return (
+    <AuthProvider>
+      <MainWorkspace />
+    </AuthProvider>
   );
 };

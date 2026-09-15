@@ -129,8 +129,12 @@ class VerificationAgent(BaseAgent):
         search_job: Optional[SearchJob] = None,
         existing_leads: Optional[List[Lead]] = None
     ) -> Tuple[Optional[Lead], bool]:
-        """Normalize, deduplicate, verify via HTTP, and persist lead."""
-        existing_leads = existing_leads or list(Lead.objects.all())
+        # Deduplicate strictly within the active user's leads workspace
+        if existing_leads is None:
+            if search_job and search_job.user:
+                existing_leads = list(Lead.objects.filter(user=search_job.user))
+            else:
+                existing_leads = list(Lead.objects.all())
 
         b_name = (raw_lead.get("business_name") or "").strip()
         lower_name = b_name.lower()
@@ -178,6 +182,7 @@ class VerificationAgent(BaseAgent):
 
         lead = Lead.objects.create(
             lead_id=lead_id,
+            user=search_job.user if search_job else None,
             search_job=search_job,
             business_name=candidate_data.get("business_name") or "Unknown Business",
             category=candidate_data.get("category") or "Local Services",

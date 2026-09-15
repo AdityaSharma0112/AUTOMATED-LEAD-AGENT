@@ -1,5 +1,9 @@
 from django.urls import path
 from .views import (
+    SendOTPAPIView,
+    VerifyOTPAPIView,
+    UserProfileAPIView,
+    LogoutAPIView,
     SearchAPIView,
     SearchJobDetailAPIView,
     LeadListAPIView,
@@ -24,6 +28,12 @@ from .views import (
 )
 
 urlpatterns = [
+    # Authentication (Email + OTP Login & Signup)
+    path('auth/send-otp', SendOTPAPIView.as_view(), name='auth_send_otp'),
+    path('auth/verify-otp', VerifyOTPAPIView.as_view(), name='auth_verify_otp'),
+    path('auth/me', UserProfileAPIView.as_view(), name='auth_me'),
+    path('auth/logout', LogoutAPIView.as_view(), name='auth_logout'),
+
     # Google Maps / Places Autocomplete
     path('places/autocomplete', places_autocomplete, name='places_autocomplete'),
 

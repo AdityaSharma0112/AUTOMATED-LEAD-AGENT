@@ -190,7 +190,8 @@ class CallingAgent(BaseAgent):
         city: str = "Solan",
         notes: str = "",
         call_type: str = "twilio_phone",
-        webhook_base_url: Optional[str] = None
+        webhook_base_url: Optional[str] = None,
+        user: Optional[Any] = None
     ) -> CallSession:
         """
         Instantly place an autonomous AI call to any custom phone number and business details.
@@ -199,6 +200,7 @@ class CallingAgent(BaseAgent):
         lead_id = f"custom_{uuid.uuid4().hex[:8]}"
         lead = Lead.objects.create(
             lead_id=lead_id,
+            user=user,
             business_name=business_name or "Custom Business",
             category=category or "Local Business",
             contact_person=contact_person or "Business Owner",

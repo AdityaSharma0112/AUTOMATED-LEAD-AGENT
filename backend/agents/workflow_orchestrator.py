@@ -46,17 +46,22 @@ class WorkflowOrchestrator:
         self,
         query: str,
         search_job: Optional[SearchJob] = None,
-        explicit_intent: Optional[Dict[str, Any]] = None
+        explicit_intent: Optional[Dict[str, Any]] = None,
+        user: Optional[Any] = None
     ) -> SearchJob:
         """
         Execute full lead discovery pipeline:
         Intent Parsing / Explicit Criteria -> Multi-source Research -> Verification & Deduplication -> Scoring -> Baseline Strategy.
         """
         if not search_job:
-            search_job = SearchJob.objects.create(query=query, status='running')
+            search_job = SearchJob.objects.create(query=query, status='running', user=user)
         else:
             search_job.status = 'running'
-            self._safe_save(search_job, update_fields=['status'])
+            if user and not search_job.user:
+                search_job.user = user
+                self._safe_save(search_job, update_fields=['status', 'user'])
+            else:
+                self._safe_save(search_job, update_fields=['status'])
 
         try:
             # 1. Parse Intent (or use direct explicit criteria)
@@ -71,8 +76,8 @@ class WorkflowOrchestrator:
             # 2. Research Businesses across providers
             raw_leads = self.research_agent.execute_research(parsed_intent, search_job=search_job)
 
-            # 3. Verification, Normalization & Deduplication
-            existing_leads = list(Lead.objects.all())
+            # 3. Verification, Normalization & Deduplication (scoped per user)
+            existing_leads = list(Lead.objects.filter(user=user)) if user else list(Lead.objects.all())
             created_leads = []
 
             for raw in raw_leads:

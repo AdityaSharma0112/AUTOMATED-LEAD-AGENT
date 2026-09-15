@@ -1,6 +1,25 @@
 import uuid
 from django.db import models
 from django.utils import timezone
+from django.contrib.auth.models import User
+
+
+class EmailOTP(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    email = models.EmailField(db_index=True)
+    otp_code = models.CharField(max_length=6)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    is_used = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def is_valid(self) -> bool:
+        return not self.is_used and timezone.now() <= self.expires_at
+
+    def __str__(self):
+        return f"OTP for {self.email} ({'used' if self.is_used else 'active'})"
 
 
 class SearchJob(models.Model):
@@ -12,6 +31,7 @@ class SearchJob(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, related_name='search_jobs')
     query = models.TextField(help_text="Natural language input query")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     parsed_intent = models.JSONField(default=dict, blank=True, help_text="Parsed category, location, radius, filters")
@@ -37,6 +57,7 @@ class Lead(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, related_name='leads')
     lead_id = models.CharField(max_length=32, unique=True, db_index=True)
     search_job = models.ForeignKey(SearchJob, on_delete=models.SET_NULL, null=True, blank=True, related_name='leads')
 

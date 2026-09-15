@@ -1,14 +1,24 @@
 import csv
+import re
+import secrets
+import datetime
 from io import StringIO
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django.db.models import Q
+from django.utils import timezone
+from django.conf import settings
+from django.core.mail import send_mail
+from django.contrib.auth.models import User
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.authtoken.models import Token
 
 from .models import (
+    EmailOTP,
     SearchJob,
     Lead,
     CallSession,
@@ -30,6 +40,205 @@ from .serializers import (
 from agents.workflow_orchestrator import WorkflowOrchestrator
 from agents.calling_agent import CallingAgent
 from agents.strategy_agent import StrategyAgent
+
+
+def get_user_leads_qs(user):
+    """
+    Returns queryset of leads owned by the user.
+    If legacy leads with user=None exist, auto-claims them for the first active authenticated user.
+    """
+    if not user or not user.is_authenticated:
+        return Lead.objects.filter(user__isnull=True)
+    
+    # Auto-claim orphan leads if this user is authenticated and has no leads yet
+    if not Lead.objects.filter(user=user).exists() and Lead.objects.filter(user__isnull=True).exists():
+        Lead.objects.filter(user__isnull=True).update(user=user)
+        SearchJob.objects.filter(user__isnull=True).update(user=user)
+
+    return Lead.objects.filter(user=user)
+
+
+def get_user_search_jobs_qs(user):
+    """
+    Returns queryset of search jobs owned by the user.
+    """
+    if not user or not user.is_authenticated:
+        return SearchJob.objects.filter(user__isnull=True)
+    if not SearchJob.objects.filter(user=user).exists() and SearchJob.objects.filter(user__isnull=True).exists():
+        SearchJob.objects.filter(user__isnull=True).update(user=user)
+    return SearchJob.objects.filter(user=user)
+
+
+# ============================================================================
+# AUTHENTICATION: EMAIL + OTP LOGIN & SIGNUP VIEWS
+# ============================================================================
+
+import logging
+logger = logging.getLogger(__name__)
+
+class SendOTPAPIView(APIView):
+    """
+    POST /api/auth/send-otp: Generate and send a 6-digit verification code to the user's email.
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        email = request.data.get("email", "").strip().lower()
+        if not email or not re.match(r"[^@]+@[^@]+\.[^@]+", email):
+            return Response({"error": "Please provide a valid email address."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Generate 6-digit numeric OTP
+        otp_code = f"{secrets.randbelow(900000) + 100000}"
+        expires_at = timezone.now() + datetime.timedelta(minutes=10)
+
+        # Invalidate prior active OTPs for this email
+        EmailOTP.objects.filter(email=email, is_used=False).update(is_used=True)
+
+        EmailOTP.objects.create(
+            email=email,
+            otp_code=otp_code,
+            expires_at=expires_at
+        )
+
+        # Send Email notification
+        subject = f"[AUTOMATED-LEAD-AGENT] Your Verification Code: {otp_code}"
+        message = (
+            f"Hello,\n\n"
+            f"Your one-time login & signup verification code is:\n\n"
+            f"   {otp_code}\n\n"
+            f"This code will expire in 10 minutes.\n"
+            f"If you did not request this, please ignore this email.\n\n"
+            f"— Priya from Digital Growth Hub"
+        )
+        try:
+            send_mail(
+                subject=subject,
+                message=message,
+                from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@digitalgrowthhub.ai'),
+                recipient_list=[email],
+                fail_silently=False
+            )
+            logger.info(f"Successfully sent OTP email to {email}")
+        except Exception as e:
+            logger.error(f"Failed to send email to {email} via SMTP: {e}")
+            print(f"[EMAIL ERROR] Could not deliver OTP email to {email}: {e}")
+
+        response_data = {
+            "success": True,
+            "message": f"Verification code sent to {email}",
+            "email": email,
+        }
+        # In debug mode, include dev_otp for instantaneous testing/verification
+        if settings.DEBUG:
+            response_data["dev_otp"] = otp_code
+
+        return Response(response_data, status=status.HTTP_200_OK)
+
+
+class VerifyOTPAPIView(APIView):
+    """
+    POST /api/auth/verify-otp: Verify 6-digit code, create/retrieve user, and issue Auth Token.
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        email = request.data.get("email", "").strip().lower()
+        otp_code = request.data.get("otp_code", "").strip()
+        full_name = request.data.get("full_name", "").strip()
+
+        if not email or not otp_code:
+            return Response({"error": "Email and verification code are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        otp_record = EmailOTP.objects.filter(email=email, otp_code=otp_code, is_used=False).order_by('-created_at').first()
+
+        if not otp_record or not otp_record.is_valid():
+            return Response({"error": "Invalid or expired verification code. Please request a new code."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Mark OTP as used
+        otp_record.is_used = True
+        otp_record.save(update_fields=['is_used'])
+
+        # Find or create User
+        user = User.objects.filter(email__iexact=email).first()
+        is_new_user = False
+        if not user:
+            # Check if username is taken
+            base_username = email.split("@")[0]
+            username = base_username
+            counter = 1
+            while User.objects.filter(username=username).exists():
+                username = f"{base_username}{counter}"
+                counter += 1
+
+            first_name = ""
+            last_name = ""
+            if full_name:
+                parts = full_name.split(" ", 1)
+                first_name = parts[0]
+                last_name = parts[1] if len(parts) > 1 else ""
+
+            user = User.objects.create_user(
+                username=username,
+                email=email,
+                first_name=first_name,
+                last_name=last_name
+            )
+            is_new_user = True
+
+            # If there are orphan leads in DB, claim them for this initial user
+            if Lead.objects.filter(user__isnull=True).exists():
+                Lead.objects.filter(user__isnull=True).update(user=user)
+                SearchJob.objects.filter(user__isnull=True).update(user=user)
+
+        # Generate or retrieve Auth Token
+        token, _ = Token.objects.get_or_create(user=user)
+
+        return Response({
+            "token": token.key,
+            "user": {
+                "id": user.id,
+                "email": user.email,
+                "username": user.username,
+                "full_name": user.get_full_name() or user.username,
+                "is_new_user": is_new_user,
+            }
+        }, status=status.HTTP_200_OK)
+
+
+class UserProfileAPIView(APIView):
+    """
+    GET /api/auth/me: Retrieve current authenticated user's profile and stats.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        leads_count = Lead.objects.filter(user=user).count()
+        calls_count = CallSession.objects.filter(lead__user=user).count()
+        return Response({
+            "id": user.id,
+            "email": user.email,
+            "username": user.username,
+            "full_name": user.get_full_name() or user.username,
+            "leads_count": leads_count,
+            "calls_count": calls_count,
+        })
+
+
+class LogoutAPIView(APIView):
+    """
+    POST /api/auth/logout: Invalidate auth token for active user.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        Token.objects.filter(user=request.user).delete()
+        return Response({"success": True, "message": "Logged out successfully."}, status=status.HTTP_200_OK)
+
+
+# ============================================================================
+# SEARCH & LEAD DISCOVERY VIEWS
+# ============================================================================
 
 
 class SearchAPIView(APIView):
@@ -71,12 +280,13 @@ class SearchAPIView(APIView):
             return Response({"error": "Query string or City/Category is required."}, status=status.HTTP_400_BAD_REQUEST)
 
         orchestrator = WorkflowOrchestrator()
-        job = orchestrator.run_search_pipeline(query=query, explicit_intent=explicit_intent)
+        user = request.user if request.user.is_authenticated else None
+        job = orchestrator.run_search_pipeline(query=query, explicit_intent=explicit_intent, user=user)
         serializer = SearchJobSerializer(job)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def get(self, request):
-        jobs = SearchJob.objects.all().order_by('-created_at')[:20]
+        jobs = get_user_search_jobs_qs(request.user).order_by('-created_at')[:20]
         serializer = SearchJobSerializer(jobs, many=True)
         return Response(serializer.data)
 
@@ -87,17 +297,19 @@ class SearchJobDetailAPIView(APIView):
     """
     def get(self, request, pk):
         job = get_object_or_404(SearchJob, pk=pk)
+        if job.user and request.user.is_authenticated and job.user != request.user:
+            return Response({"error": "Unauthorized access to this search job."}, status=status.HTTP_403_FORBIDDEN)
         serializer = SearchJobSerializer(job)
         return Response(serializer.data)
 
 
 class LeadListAPIView(APIView):
     """
-    GET /api/leads: Filter, sort, and paginate leads.
-    DELETE /api/leads: Clear all leads.
+    GET /api/leads: Filter, sort, and paginate leads strictly for the authenticated user.
+    DELETE /api/leads: Clear all leads for this user.
     """
     def get(self, request):
-        queryset = Lead.objects.exclude(
+        queryset = get_user_leads_qs(request.user).exclude(
             Q(business_name__icontains="Hub (") |
             Q(business_name__icontains="(justdial)") |
             Q(business_name__icontains="(indiamart)") |
@@ -146,20 +358,22 @@ class LeadListAPIView(APIView):
         return Response(serializer.data)
 
     def delete(self, request):
-        count = Lead.objects.count()
-        Lead.objects.all().delete()
-        SearchJob.objects.all().delete()
-        return Response({"message": f"Cleared {count} leads and all search history."}, status=status.HTTP_200_OK)
+        user_leads = get_user_leads_qs(request.user)
+        count = user_leads.count()
+        user_leads.delete()
+        get_user_search_jobs_qs(request.user).delete()
+        return Response({"message": f"Cleared {count} leads and your search history."}, status=status.HTTP_200_OK)
 
 
 @api_view(['POST'])
 def clear_all_leads(request):
     """
-    POST /api/leads/clear: Wipe all leads and search history for a clean state.
+    POST /api/leads/clear: Wipe leads and search history for active user.
     """
-    count = Lead.objects.count()
-    Lead.objects.all().delete()
-    SearchJob.objects.all().delete()
+    user_leads = get_user_leads_qs(request.user)
+    count = user_leads.count()
+    user_leads.delete()
+    get_user_search_jobs_qs(request.user).delete()
     return Response({"message": f"Successfully deleted {count} leads."}, status=status.HTTP_200_OK)
 
 
@@ -246,7 +460,8 @@ class CallSessionAPIView(APIView):
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def get(self, request):
-        calls = CallSession.objects.all().order_by('-created_at')[:50]
+        user_leads = get_user_leads_qs(request.user)
+        calls = CallSession.objects.filter(lead__in=user_leads).order_by('-created_at')[:50]
         serializer = CallSessionSerializer(calls, many=True)
         return Response(serializer.data)
 
@@ -269,6 +484,7 @@ def quick_call_view(request):
         return Response({"error": "Phone number is required for outbound cellular call."}, status=status.HTTP_400_BAD_REQUEST)
 
     calling_agent = CallingAgent()
+    user = request.user if request.user.is_authenticated else None
     try:
         call_session = calling_agent.call_custom_number(
             phone_number=phone or "Direct Web Caller",
@@ -278,7 +494,8 @@ def quick_call_view(request):
             city=city,
             notes=notes,
             call_type=call_type,
-            webhook_base_url=webhook_base_url
+            webhook_base_url=webhook_base_url,
+            user=user
         )
         serializer = CallSessionSerializer(call_session)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -542,7 +759,7 @@ class SettingsAPIView(APIView):
 @api_view(['GET'])
 def export_leads_csv(request):
     """
-    GET /api/leads/export/csv: Export all qualified leads with strategies as CSV.
+    GET /api/leads/export/csv: Export all qualified leads with strategies as CSV for the active user.
     """
     response = HttpResponse(content_type='text/csv')
     response['Content-Disposition'] = 'attachment; filename="leads_export.csv"'
@@ -555,7 +772,7 @@ def export_leads_csv(request):
         'Buying Intent', 'Next Action', 'Pitch'
     ])
 
-    leads = Lead.objects.all()
+    leads = get_user_leads_qs(request.user)
     for lead in leads:
         intel = getattr(lead, 'intelligence', None)
         strat = getattr(lead, 'strategy', None)

@@ -8,9 +8,12 @@ import {
   Sparkles,
   Trash2,
   Sun,
-  Moon
+  Moon,
+  LogOut,
+  User as UserIcon
 } from 'lucide-react';
 import { api } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 interface HeaderProps {
   theme: 'dark' | 'light';
@@ -35,6 +38,7 @@ export const Header: React.FC<HeaderProps> = ({
   onClearAllLeads,
   totalLeadsCount,
 }) => {
+  const { user, logout } = useAuth();
   return (
     <header style={{
       display: 'flex',
@@ -190,6 +194,51 @@ export const Header: React.FC<HeaderProps> = ({
         >
           <Settings size={15} />
         </button>
+
+        {/* Authenticated User & Logout */}
+        {user && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            marginLeft: '6px',
+            paddingLeft: '10px',
+            borderLeft: '1px solid var(--border-subtle)',
+          }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 10px',
+                borderRadius: 'var(--radius-md)',
+                backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                border: '1px solid rgba(99, 102, 241, 0.25)',
+                fontSize: '0.8rem',
+                color: 'var(--text-primary)',
+              }}
+              title={`Logged in as ${user.email}`}
+            >
+              <UserIcon size={14} color="#818cf8" />
+              <span style={{ fontWeight: 600, maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {user.full_name || user.email.split('@')[0]}
+              </span>
+            </div>
+
+            <button
+              onClick={() => logout()}
+              className="btn btn-secondary"
+              style={{
+                padding: '8px 10px',
+                color: 'var(--text-secondary)',
+              }}
+              title="Log out of workspace"
+              id="logout-button"
+            >
+              <LogOut size={15} />
+            </button>
+          </div>
+        )}
       </div>
     </header>
   );
