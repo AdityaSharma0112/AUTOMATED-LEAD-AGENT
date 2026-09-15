@@ -62,8 +62,7 @@ TEMPLATES = [
 WSGI_APPLICATION = 'core.wsgi.application'
 ASGI_APPLICATION = 'core.asgi.application'
 
-# Database
-# Configured with 60-second busy timeout and WAL mode to prevent SQLite database lock errors
+# Database Configuration (PostgreSQL in production when DATABASE_URL is set, SQLite fallback for local development)
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
@@ -73,6 +72,19 @@ DATABASES = {
         },
     }
 }
+
+_database_url = os.getenv('DATABASE_URL', '').strip()
+if _database_url:
+    import urllib.parse
+    _parsed_db = urllib.parse.urlparse(_database_url)
+    DATABASES['default'] = {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': _parsed_db.path.lstrip('/'),
+        'USER': _parsed_db.username,
+        'PASSWORD': _parsed_db.password,
+        'HOST': _parsed_db.hostname,
+        'PORT': _parsed_db.port or 5432,
+    }
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [

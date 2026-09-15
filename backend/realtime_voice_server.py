@@ -798,7 +798,18 @@ async def handle_openai_realtime_stream(websocket: WebSocket, system_instruction
         print(f" OpenAI Realtime connection error: {e}")
 
 
+# Mount Django ASGI Application to handle all REST APIs (/api/leads, /api/auth, /api/search) on the unified server
+if DJANGO_AVAILABLE:
+    try:
+        from django.core.asgi import get_asgi_application
+        django_asgi_app = get_asgi_application()
+        app.mount("/", django_asgi_app)
+        print(" Successfully mounted Django REST API on the Unified Voice Server.")
+    except Exception as e:
+        print(f" [Django ASGI Mount Warning]: {e}")
+
+
 if __name__ == "__main__":
     import uvicorn
-    print(f" Starting Realtime Voice Stream Server on http://0.0.0.0:{PORT} (Engine: {AI_ENGINE})")
+    print(f" Starting Unified Realtime Voice & Django Server on http://0.0.0.0:{PORT} (Engine: {AI_ENGINE})")
     uvicorn.run(app, host="0.0.0.0", port=PORT)
