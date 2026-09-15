@@ -10,6 +10,9 @@ import { Lead, SearchJob, CallSession } from './types/lead';
 import { api } from './services/api';
 
 export const App: React.FC = () => {
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    return (localStorage.getItem('antigravity_theme') as 'dark' | 'light') || 'dark';
+  });
   const [leads, setLeads] = useState<Lead[]>([]);
   const [activeJob, setActiveJob] = useState<SearchJob | null>(null);
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
@@ -19,6 +22,15 @@ export const App: React.FC = () => {
   const [showAuditModal, setShowAuditModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showQuickCallModal, setShowQuickCallModal] = useState(false);
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('antigravity_theme', theme);
+  }, [theme]);
+
+  const handleToggleTheme = () => {
+    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  };
 
   const fetchSettingsAndLeads = async () => {
     try {
@@ -110,6 +122,8 @@ export const App: React.FC = () => {
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       {/* Top Navigation & Status */}
       <Header
+        theme={theme}
+        onToggleTheme={handleToggleTheme}
         killSwitchActive={killSwitchActive}
         onToggleKillSwitch={handleToggleKillSwitch}
         onOpenSettings={() => setShowSettingsModal(true)}

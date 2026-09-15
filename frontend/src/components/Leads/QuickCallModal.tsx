@@ -70,15 +70,11 @@ export const QuickCallModal: React.FC<QuickCallModalProps> = ({ isOpen, onClose,
   return (
     <div className="modal-overlay" onClick={onClose} style={{ zIndex: 1000 }}>
       <div
-        className="modal-content"
+        className="glass-panel"
         onClick={(e) => e.stopPropagation()}
         style={{
           maxWidth: '540px',
           width: '90%',
-          background: 'var(--bg-surface)',
-          border: '1px solid var(--border-glow)',
-          borderRadius: 'var(--radius-lg)',
-          boxShadow: 'var(--shadow-lg)',
           padding: '24px',
           display: 'flex',
           flexDirection: 'column',

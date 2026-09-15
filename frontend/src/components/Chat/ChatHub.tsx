@@ -3,7 +3,6 @@ import {
   Send,
   Sparkles,
   Search,
-  Compass,
   CheckCircle2,
   Loader2,
   MapPin,
@@ -42,14 +41,6 @@ interface PlaceSuggestion {
   city: string;
   state: string;
   country: string;
-}
-
-interface RelatedPlace {
-  name: string;
-  type: string;
-  city: string;
-  lat?: number;
-  lon?: number;
 }
 
 interface ChatHubProps {
@@ -108,19 +99,8 @@ export const ChatHub: React.FC<ChatHubProps> = ({ onSearch, isSearching, activeJ
   const [radiusKm, setRadiusKm] = useState(30);
   const [websiteFilter, setWebsiteFilter] = useState('no_website');
 
-  // Autocomplete & Related Places States
+  // Autocomplete Suggestions State
   const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
-  const [relatedPlaces, setRelatedPlaces] = useState<RelatedPlace[]>([
-    { name: "Mall Road", type: "Market & Commercial", city: "Solan", lat: 30.9045, lon: 77.1025 },
-    { name: "Saproon", type: "Locality & Market", city: "Solan", lat: 30.9012, lon: 77.0950 },
-    { name: "Chambaghat", type: "Sub-Town & Hub", city: "Solan", lat: 30.9230, lon: 77.1120 },
-    { name: "Deonghat", type: "Locality & Hub", city: "Solan", lat: 30.8920, lon: 77.0850 },
-    { name: "Kotla Nala", type: "Commercial Area", city: "Solan", lat: 30.9090, lon: 77.1010 },
-    { name: "Kumarhatti", type: "Junction & Town", city: "Solan", lat: 30.8750, lon: 77.0500 },
-    { name: "Kandaghat", type: "Subdivision & Town", city: "Solan", lat: 30.9600, lon: 77.1100 },
-    { name: "Dharampur", type: "Town & Market", city: "Solan", lat: 30.9020, lon: 77.0250 },
-    { name: "Barog", type: "Hill Station", city: "Solan", lat: 30.8900, lon: 77.0800 },
-  ]);
   const [isFetchingPlaces, setIsFetchingPlaces] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
@@ -158,9 +138,6 @@ export const ChatHub: React.FC<ChatHubProps> = ({ onSearch, isSearching, activeJ
       try {
         const res = await api.getPlaceSuggestions(cityInput);
         setSuggestions(res.suggestions || []);
-        if (res.related_places && res.related_places.length > 0) {
-          setRelatedPlaces(res.related_places);
-        }
         if (res.suggestions && res.suggestions.length > 0) {
           setShowDropdown(true);
         }
@@ -177,24 +154,6 @@ export const ChatHub: React.FC<ChatHubProps> = ({ onSearch, isSearching, activeJ
   const handleSelectPlace = (place: PlaceSuggestion) => {
     setSelectedPlace(place);
     setCityInput(place.main_text || place.city || place.display_name);
-    setShowDropdown(false);
-  };
-
-  const handleSelectRelatedPlace = (rel: RelatedPlace) => {
-    const fullName = `${rel.name}, ${rel.city}`;
-    const newPlace: PlaceSuggestion = {
-      display_name: `${rel.name}, ${rel.city}, India`,
-      main_text: rel.name,
-      secondary_text: `${rel.city}, India`,
-      type_label: rel.type || "Locality",
-      lat: rel.lat || (selectedPlace?.lat || 30.9084),
-      lon: rel.lon || (selectedPlace?.lon || 77.0999),
-      city: rel.city,
-      state: selectedPlace?.state || "Himachal Pradesh",
-      country: "India"
-    };
-    setSelectedPlace(newPlace);
-    setCityInput(fullName);
     setShowDropdown(false);
   };
 
@@ -230,12 +189,6 @@ export const ChatHub: React.FC<ChatHubProps> = ({ onSearch, isSearching, activeJ
             };
             setSelectedPlace(newPlace);
             setCityInput(mainText);
-
-            // Fetch related places for this detected city
-            const placeRes = await api.getPlaceSuggestions(cityName);
-            if (placeRes.related_places && placeRes.related_places.length > 0) {
-              setRelatedPlaces(placeRes.related_places);
-            }
           }
         } catch {
           alert("Could not determine address from your GPS location.");
@@ -283,15 +236,15 @@ export const ChatHub: React.FC<ChatHubProps> = ({ onSearch, isSearching, activeJ
   const getPlaceTypeIcon = (typeLabel?: string) => {
     const l = (typeLabel || "").toLowerCase();
     if (l.includes("commercial") || l.includes("market") || l.includes("bazaar")) {
-      return <Store size={15} color="#fbbf24" style={{ flexShrink: 0, marginTop: '2px' }} />;
+      return <Store size={15} color="#f59e0b" style={{ flexShrink: 0, marginTop: '2px' }} />;
     }
     if (l.includes("city") || l.includes("town")) {
-      return <Building2 size={15} color="#60a5fa" style={{ flexShrink: 0, marginTop: '2px' }} />;
+      return <Building2 size={15} color="#6366f1" style={{ flexShrink: 0, marginTop: '2px' }} />;
     }
     if (l.includes("landmark") || l.includes("poi")) {
-      return <Navigation2 size={15} color="#a855f7" style={{ flexShrink: 0, marginTop: '2px' }} />;
+      return <Navigation2 size={15} color="#8b5cf6" style={{ flexShrink: 0, marginTop: '2px' }} />;
     }
-    return <MapPin size={15} color="#f43f5e" style={{ flexShrink: 0, marginTop: '2px' }} />;
+    return <MapPin size={15} color="#ef4444" style={{ flexShrink: 0, marginTop: '2px' }} />;
   };
 
   return (
@@ -301,10 +254,10 @@ export const ChatHub: React.FC<ChatHubProps> = ({ onSearch, isSearching, activeJ
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <div style={{
             padding: '10px',
-            background: 'rgba(239, 68, 68, 0.15)',
-            border: '1px solid rgba(239, 68, 68, 0.3)',
+            background: 'var(--danger-bg)',
+            border: '1px solid rgba(239, 68, 68, 0.25)',
             borderRadius: '12px',
-            color: '#ef4444',
+            color: 'var(--danger)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -313,7 +266,7 @@ export const ChatHub: React.FC<ChatHubProps> = ({ onSearch, isSearching, activeJ
           </div>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <h2 style={{ fontSize: '1.15rem', fontWeight: 800, letterSpacing: '-0.01em' }}>
+              <h2 style={{ fontSize: '1.15rem', fontWeight: 800, letterSpacing: '-0.01em', color: 'var(--text-primary)' }}>
                 Google Maps Places & Lead Search
               </h2>
               <span className="badge badge-success" style={{ fontSize: '0.65rem', textTransform: 'uppercase', padding: '2px 8px' }}>
@@ -321,7 +274,7 @@ export const ChatHub: React.FC<ChatHubProps> = ({ onSearch, isSearching, activeJ
               </span>
             </div>
             <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
-              Search any place or locality worldwide with live Google Maps place typeahead and related area discovery.
+              Search any place worldwide with live Google Maps place typeahead and intelligent lead qualification.
             </p>
           </div>
         </div>
@@ -329,7 +282,7 @@ export const ChatHub: React.FC<ChatHubProps> = ({ onSearch, isSearching, activeJ
         {/* Tab Switcher */}
         <div style={{
           display: 'flex',
-          background: 'rgba(0, 0, 0, 0.35)',
+          background: 'var(--tab-bg)',
           padding: '4px',
           borderRadius: '10px',
           border: '1px solid var(--border-subtle)',
@@ -393,9 +346,9 @@ export const ChatHub: React.FC<ChatHubProps> = ({ onSearch, isSearching, activeJ
             {/* Google Maps Places Autocomplete Input */}
             <div style={{ position: 'relative' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', fontWeight: 700, color: '#fca5a5' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                   <MapPin size={14} color="#ef4444" />
-                  <span>GOOGLE MAPS LOCATION / PLACE</span>
+                  <span>LOCATION / CITY / PLACE</span>
                 </label>
                 <button
                   type="button"
@@ -429,20 +382,20 @@ export const ChatHub: React.FC<ChatHubProps> = ({ onSearch, isSearching, activeJ
                     setShowDropdown(true);
                   }}
                   onFocus={() => {
-                    if (suggestions.length > 0 || relatedPlaces.length > 0) setShowDropdown(true);
+                    if (suggestions.length > 0) setShowDropdown(true);
                   }}
-                  placeholder="Search a place, locality, market, or landmark on Google Maps..."
+                  placeholder="Search a place, city, or market on Google Maps..."
                   disabled={isSearching}
                   style={{
                     width: '100%',
-                    padding: '13px 40px 13px 16px',
+                    padding: '12px 40px 12px 14px',
                     background: 'var(--bg-input)',
                     border: showDropdown ? '1px solid var(--accent-primary)' : '1px solid var(--border-subtle)',
                     borderRadius: 'var(--radius-md)',
                     color: 'var(--text-primary)',
                     fontSize: '0.925rem',
                     outline: 'none',
-                    boxShadow: showDropdown ? '0 0 0 3px rgba(99, 102, 241, 0.2)' : 'none',
+                    boxShadow: showDropdown ? '0 0 0 3px rgba(99, 102, 241, 0.15)' : 'none',
                     transition: 'all 0.2s ease',
                   }}
                 />
@@ -465,7 +418,7 @@ export const ChatHub: React.FC<ChatHubProps> = ({ onSearch, isSearching, activeJ
               </div>
 
               {/* Google Maps Style Autocomplete Dropdown */}
-              {showDropdown && (suggestions.length > 0 || relatedPlaces.length > 0) && (
+              {showDropdown && suggestions.length > 0 && (
                 <div
                   ref={dropdownRef}
                   style={{
@@ -473,12 +426,12 @@ export const ChatHub: React.FC<ChatHubProps> = ({ onSearch, isSearching, activeJ
                     top: 'calc(100% + 6px)',
                     left: 0,
                     right: 0,
-                    background: '#13182c',
-                    border: '1px solid rgba(99, 102, 241, 0.35)',
+                    background: 'var(--dropdown-bg)',
+                    border: '1px solid var(--border-focus)',
                     borderRadius: '10px',
-                    boxShadow: '0 16px 36px -4px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.05)',
+                    boxShadow: '0 16px 36px -4px rgba(0, 0, 0, 0.4), 0 0 0 1px var(--border-subtle)',
                     zIndex: 100,
-                    maxHeight: '340px',
+                    maxHeight: '320px',
                     overflowY: 'auto',
                   }}
                 >
@@ -486,19 +439,19 @@ export const ChatHub: React.FC<ChatHubProps> = ({ onSearch, isSearching, activeJ
                     padding: '8px 14px',
                     fontSize: '0.7rem',
                     fontWeight: 800,
-                    color: '#94a3b8',
+                    color: 'var(--text-secondary)',
                     letterSpacing: '0.05em',
-                    borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
+                    borderBottom: '1px solid var(--border-subtle)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    background: 'rgba(0, 0, 0, 0.25)'
+                    background: 'var(--table-head-bg)'
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <Map size={13} color="#ef4444" />
-                      <span>GOOGLE MAPS PLACES MATCHING "{cityInput}"</span>
+                      <span>MATCHING PLACES</span>
                     </div>
-                    <span style={{ fontSize: '0.65rem', color: '#64748b' }}>{suggestions.length} places found</span>
+                    <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>{suggestions.length} places found</span>
                   </div>
 
                   {/* Suggestions List */}
@@ -512,16 +465,16 @@ export const ChatHub: React.FC<ChatHubProps> = ({ onSearch, isSearching, activeJ
                         display: 'flex',
                         alignItems: 'flex-start',
                         gap: '12px',
-                        borderBottom: '1px solid rgba(255, 255, 255, 0.04)',
+                        borderBottom: '1px solid var(--border-subtle)',
                         transition: 'background 0.15s ease',
                       }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(99, 102, 241, 0.18)')}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--chip-active-bg)')}
                       onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                     >
                       {getPlaceTypeIcon(p.type_label)}
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                          <span style={{ fontSize: '0.875rem', fontWeight: 700, color: '#f8fafc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                             {p.main_text}
                           </span>
                           {p.type_label && (
@@ -530,54 +483,20 @@ export const ChatHub: React.FC<ChatHubProps> = ({ onSearch, isSearching, activeJ
                               fontWeight: 700,
                               padding: '1px 6px',
                               borderRadius: '4px',
-                              background: 'rgba(255, 255, 255, 0.08)',
-                              color: '#cbd5e1',
+                              background: 'var(--chip-bg)',
+                              color: 'var(--text-secondary)',
                               whiteSpace: 'nowrap'
                             }}>
                               {p.type_label}
                             </span>
                           )}
                         </div>
-                        <div style={{ fontSize: '0.725rem', color: '#94a3b8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: '2px' }}>
+                        <div style={{ fontSize: '0.725rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: '2px' }}>
                           {p.secondary_text || p.display_name}
                         </div>
                       </div>
                     </div>
                   ))}
-
-                  {/* Related Sub-Localities in Dropdown */}
-                  {relatedPlaces.length > 0 && (
-                    <div style={{ padding: '12px 14px', background: 'rgba(0, 0, 0, 0.4)', borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
-                      <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#a5b4fc', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <Store size={13} color="#f59e0b" />
-                        <span>RELATED LOCALITIES & MARKETS IN THIS AREA:</span>
-                      </div>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                        {relatedPlaces.slice(0, 8).map((rel, rIdx) => (
-                          <button
-                            key={rIdx}
-                            type="button"
-                            onClick={() => handleSelectRelatedPlace(rel)}
-                            style={{
-                              padding: '3px 8px',
-                              borderRadius: '6px',
-                              fontSize: '0.7rem',
-                              background: 'rgba(99, 102, 241, 0.15)',
-                              border: '1px solid rgba(99, 102, 241, 0.3)',
-                              color: '#e2e8f0',
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                            }}
-                          >
-                            <span style={{ color: '#f43f5e' }}>📍</span>
-                            <span>{rel.name}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                 </div>
               )}
 
@@ -586,8 +505,8 @@ export const ChatHub: React.FC<ChatHubProps> = ({ onSearch, isSearching, activeJ
                 <div style={{
                   marginTop: '8px',
                   padding: '8px 12px',
-                  background: 'rgba(15, 23, 42, 0.6)',
-                  border: '1px solid rgba(255, 255, 255, 0.06)',
+                  background: 'var(--banner-bg)',
+                  border: '1px solid var(--border-subtle)',
                   borderRadius: '8px',
                   display: 'flex',
                   alignItems: 'center',
@@ -599,7 +518,7 @@ export const ChatHub: React.FC<ChatHubProps> = ({ onSearch, isSearching, activeJ
                     <span className="badge badge-info" style={{ fontSize: '0.65rem', fontWeight: 700 }}>
                       📍 GPS: {selectedPlace.lat.toFixed(4)}, {selectedPlace.lon.toFixed(4)}
                     </span>
-                    <span style={{ fontSize: '0.75rem', color: '#cbd5e1', fontWeight: 600 }}>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-primary)', fontWeight: 600 }}>
                       {selectedPlace.main_text} ({selectedPlace.state || selectedPlace.country})
                     </span>
                   </div>
@@ -626,8 +545,8 @@ export const ChatHub: React.FC<ChatHubProps> = ({ onSearch, isSearching, activeJ
 
             {/* Business Category Input */}
             <div>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', fontWeight: 700, marginBottom: '6px', color: '#a5b4fc' }}>
-                <Building2 size={14} />
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', fontWeight: 700, marginBottom: '6px', color: 'var(--text-primary)' }}>
+                <Building2 size={14} color="var(--accent-primary)" />
                 <span>BUSINESS TYPE / CATEGORY</span>
               </label>
               <input
@@ -638,7 +557,7 @@ export const ChatHub: React.FC<ChatHubProps> = ({ onSearch, isSearching, activeJ
                 disabled={isSearching}
                 style={{
                   width: '100%',
-                  padding: '13px 14px',
+                  padding: '12px 14px',
                   background: 'var(--bg-input)',
                   border: '1px solid var(--border-subtle)',
                   borderRadius: 'var(--radius-md)',
@@ -651,8 +570,8 @@ export const ChatHub: React.FC<ChatHubProps> = ({ onSearch, isSearching, activeJ
 
             {/* Radius (km) */}
             <div>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', fontWeight: 700, marginBottom: '6px', color: '#a5b4fc' }}>
-                <Sliders size={14} />
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', fontWeight: 700, marginBottom: '6px', color: 'var(--text-primary)' }}>
+                <Sliders size={14} color="var(--accent-primary)" />
                 <span>SEARCH RADIUS</span>
               </label>
               <select
@@ -661,13 +580,14 @@ export const ChatHub: React.FC<ChatHubProps> = ({ onSearch, isSearching, activeJ
                 disabled={isSearching}
                 style={{
                   width: '100%',
-                  padding: '13px 14px',
+                  padding: '12px 14px',
                   background: 'var(--bg-input)',
                   border: '1px solid var(--border-subtle)',
                   borderRadius: 'var(--radius-md)',
                   color: 'var(--text-primary)',
                   fontSize: '0.925rem',
                   outline: 'none',
+                  cursor: 'pointer',
                 }}
               >
                 <option value={10}>10 km (Immediate Local Market & Center)</option>
@@ -679,8 +599,8 @@ export const ChatHub: React.FC<ChatHubProps> = ({ onSearch, isSearching, activeJ
 
             {/* Website Filter */}
             <div>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', fontWeight: 700, marginBottom: '6px', color: '#a5b4fc' }}>
-                <Globe size={14} />
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', fontWeight: 700, marginBottom: '6px', color: 'var(--text-primary)' }}>
+                <Globe size={14} color="var(--accent-primary)" />
                 <span>WEBSITE FILTER</span>
               </label>
               <select
@@ -689,13 +609,14 @@ export const ChatHub: React.FC<ChatHubProps> = ({ onSearch, isSearching, activeJ
                 disabled={isSearching}
                 style={{
                   width: '100%',
-                  padding: '13px 14px',
+                  padding: '12px 14px',
                   background: 'var(--bg-input)',
                   border: '1px solid var(--border-subtle)',
                   borderRadius: 'var(--radius-md)',
                   color: 'var(--text-primary)',
                   fontSize: '0.925rem',
                   outline: 'none',
+                  cursor: 'pointer',
                 }}
               >
                 <option value="no_website">No Website (High Opportunity Leads)</option>
@@ -705,73 +626,17 @@ export const ChatHub: React.FC<ChatHubProps> = ({ onSearch, isSearching, activeJ
             </div>
           </div>
 
-          {/* Related Places & Sub-Localities Interactive Tray */}
-          {relatedPlaces.length > 0 && (
-            <div style={{
-              background: 'rgba(255, 255, 255, 0.02)',
-              border: '1px solid rgba(255, 255, 255, 0.05)',
-              borderRadius: '10px',
-              padding: '12px 16px',
-              marginBottom: '16px',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', flexWrap: 'wrap', gap: '6px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', fontWeight: 700, color: '#cbd5e1' }}>
-                  <MapPin size={13} color="#f43f5e" />
-                  <span>Related Places & Localities in {selectedPlace?.city || cityInput}:</span>
-                </div>
-                <span style={{ fontSize: '0.675rem', color: 'var(--text-muted)' }}>Click to search that specific area</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                {relatedPlaces.map((rel, rIdx) => {
-                  const isActive = cityInput.includes(rel.name);
-                  return (
-                    <button
-                      key={rIdx}
-                      type="button"
-                      onClick={() => handleSelectRelatedPlace(rel)}
-                      disabled={isSearching}
-                      style={{
-                        padding: '4px 10px',
-                        borderRadius: '6px',
-                        fontSize: '0.725rem',
-                        fontWeight: 600,
-                        background: isActive ? 'rgba(239, 68, 68, 0.25)' : 'rgba(255, 255, 255, 0.04)',
-                        border: isActive ? '1px solid #ef4444' : '1px solid rgba(255, 255, 255, 0.08)',
-                        color: isActive ? '#ffffff' : '#94a3b8',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        transition: 'all 0.15s ease',
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!isActive) e.currentTarget.style.borderColor = 'var(--accent-primary)';
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!isActive) e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
-                      }}
-                    >
-                      <span style={{ color: isActive ? '#ef4444' : '#64748b' }}>📍</span>
-                      <span>{rel.name}</span>
-                      <span style={{ fontSize: '0.625rem', color: 'var(--text-muted)', marginLeft: '2px' }}>({rel.type.split(' ')[0]})</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Quick Hub Badges */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>
+          {/* Quick Filter Badges */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '0.725rem', fontWeight: 600, color: 'var(--text-muted)' }}>Popular Cities:</span>
+              <span style={{ fontSize: '0.725rem', fontWeight: 700, color: 'var(--text-muted)' }}>Popular Cities:</span>
               {POPULAR_CITIES.map((c) => {
                 const isSelected = cityInput === c.name;
                 return (
                   <button
                     key={c.name}
                     type="button"
-                    onClick={async () => {
+                    onClick={() => {
                       setCityInput(c.name);
                       setSelectedPlace({
                         display_name: `${c.name}, ${c.state}, India`,
@@ -784,20 +649,18 @@ export const ChatHub: React.FC<ChatHubProps> = ({ onSearch, isSearching, activeJ
                         state: c.state,
                         country: 'India',
                       });
-                      const placeRes = await api.getPlaceSuggestions(c.name);
-                      if (placeRes.related_places && placeRes.related_places.length > 0) {
-                        setRelatedPlaces(placeRes.related_places);
-                      }
                     }}
                     disabled={isSearching}
                     style={{
-                      padding: '3px 9px',
+                      padding: '4px 10px',
                       borderRadius: '12px',
                       fontSize: '0.725rem',
-                      background: isSelected ? 'rgba(99, 102, 241, 0.25)' : 'rgba(255, 255, 255, 0.03)',
-                      border: isSelected ? '1px solid var(--accent-primary)' : '1px solid var(--border-subtle)',
-                      color: isSelected ? '#ffffff' : 'var(--text-secondary)',
+                      fontWeight: isSelected ? 700 : 500,
+                      background: isSelected ? 'var(--chip-active-bg)' : 'var(--chip-bg)',
+                      border: isSelected ? '1px solid var(--chip-active-border)' : '1px solid var(--chip-border)',
+                      color: isSelected ? 'var(--accent-primary)' : 'var(--chip-text)',
                       cursor: 'pointer',
+                      transition: 'all 0.15s ease',
                     }}
                   >
                     📍 {c.name}
@@ -807,26 +670,31 @@ export const ChatHub: React.FC<ChatHubProps> = ({ onSearch, isSearching, activeJ
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '0.725rem', fontWeight: 600, color: 'var(--text-muted)' }}>Quick Categories:</span>
-              {POPULAR_CATEGORIES.map((cat) => (
-                <button
-                  key={cat}
-                  type="button"
-                  onClick={() => setCategory(cat)}
-                  disabled={isSearching}
-                  style={{
-                    padding: '3px 9px',
-                    borderRadius: '12px',
-                    fontSize: '0.725rem',
-                    background: category === cat ? 'rgba(99, 102, 241, 0.25)' : 'rgba(255, 255, 255, 0.03)',
-                    border: category === cat ? '1px solid var(--accent-primary)' : '1px solid var(--border-subtle)',
-                    color: category === cat ? '#ffffff' : 'var(--text-secondary)',
-                    cursor: 'pointer',
-                  }}
-                >
-                  {cat}
-                </button>
-              ))}
+              <span style={{ fontSize: '0.725rem', fontWeight: 700, color: 'var(--text-muted)' }}>Quick Categories:</span>
+              {POPULAR_CATEGORIES.map((cat) => {
+                const isSelected = category === cat;
+                return (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setCategory(cat)}
+                    disabled={isSearching}
+                    style={{
+                      padding: '4px 10px',
+                      borderRadius: '12px',
+                      fontSize: '0.725rem',
+                      fontWeight: isSelected ? 700 : 500,
+                      background: isSelected ? 'var(--chip-active-bg)' : 'var(--chip-bg)',
+                      border: isSelected ? '1px solid var(--chip-active-border)' : '1px solid var(--chip-border)',
+                      color: isSelected ? 'var(--accent-primary)' : 'var(--chip-text)',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    {cat}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -837,14 +705,13 @@ export const ChatHub: React.FC<ChatHubProps> = ({ onSearch, isSearching, activeJ
               disabled={isSearching || !cityInput.trim() || !category.trim()}
               className="btn btn-primary"
               style={{
-                padding: '13px 32px',
-                fontSize: '0.95rem',
+                padding: '12px 28px',
+                fontSize: '0.925rem',
                 borderRadius: '8px',
-                fontWeight: 800,
+                fontWeight: 700,
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
-                boxShadow: '0 4px 14px rgba(99, 102, 241, 0.35)',
               }}
             >
               {isSearching ? <Loader2 size={18} className="live-pulse" /> : <Search size={18} />}
@@ -866,7 +733,7 @@ export const ChatHub: React.FC<ChatHubProps> = ({ onSearch, isSearching, activeJ
               disabled={isSearching}
               style={{
                 width: '100%',
-                padding: '16px 60px 16px 20px',
+                padding: '15px 160px 15px 18px',
                 background: 'var(--bg-input)',
                 border: '1px solid var(--border-subtle)',
                 borderRadius: 'var(--radius-md)',
@@ -874,7 +741,6 @@ export const ChatHub: React.FC<ChatHubProps> = ({ onSearch, isSearching, activeJ
                 fontSize: '0.95rem',
                 fontFamily: 'var(--font-main)',
                 outline: 'none',
-                boxShadow: 'inset 0 2px 4px rgba(0, 0, 0, 0.4)',
               }}
             />
             <button
@@ -886,7 +752,7 @@ export const ChatHub: React.FC<ChatHubProps> = ({ onSearch, isSearching, activeJ
                 right: '8px',
                 top: '50%',
                 transform: 'translateY(-50%)',
-                padding: '10px 18px',
+                padding: '9px 18px',
                 borderRadius: '8px',
               }}
             >
@@ -897,7 +763,7 @@ export const ChatHub: React.FC<ChatHubProps> = ({ onSearch, isSearching, activeJ
 
           {/* Preset Prompts */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>Quick Prompts:</span>
+            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)' }}>Quick Prompts:</span>
             {PRESET_PROMPTS.map((p, idx) => (
               <button
                 key={idx}
@@ -909,7 +775,6 @@ export const ChatHub: React.FC<ChatHubProps> = ({ onSearch, isSearching, activeJ
                   fontSize: '0.75rem',
                   padding: '4px 10px',
                   borderRadius: '16px',
-                  background: 'rgba(255, 255, 255, 0.03)',
                 }}
               >
                 <Sparkles size={12} color="var(--accent-secondary)" />
@@ -925,7 +790,7 @@ export const ChatHub: React.FC<ChatHubProps> = ({ onSearch, isSearching, activeJ
         <div style={{
           marginTop: '20px',
           padding: '16px',
-          background: 'rgba(0, 0, 0, 0.25)',
+          background: 'var(--tab-bg)',
           borderRadius: 'var(--radius-md)',
           border: '1px solid var(--border-subtle)',
         }}>
@@ -950,12 +815,12 @@ export const ChatHub: React.FC<ChatHubProps> = ({ onSearch, isSearching, activeJ
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
             <div style={{
               padding: '10px',
-              background: 'rgba(255, 255, 255, 0.03)',
+              background: 'var(--chip-bg)',
               borderRadius: '8px',
               border: '1px solid var(--border-subtle)',
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.775rem', fontWeight: 600, color: '#a5b4fc' }}>
-                <CheckCircle2 size={14} color="#34d399" />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.775rem', fontWeight: 600, color: 'var(--accent-primary)' }}>
+                <CheckCircle2 size={14} color="#10b981" />
                 <span>1. Criteria & Intent</span>
               </div>
               <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px' }}>
@@ -965,12 +830,12 @@ export const ChatHub: React.FC<ChatHubProps> = ({ onSearch, isSearching, activeJ
 
             <div style={{
               padding: '10px',
-              background: 'rgba(255, 255, 255, 0.03)',
+              background: 'var(--chip-bg)',
               borderRadius: '8px',
               border: '1px solid var(--border-subtle)',
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.775rem', fontWeight: 600, color: '#a5b4fc' }}>
-                <CheckCircle2 size={14} color="#34d399" />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.775rem', fontWeight: 600, color: 'var(--accent-primary)' }}>
+                <CheckCircle2 size={14} color="#10b981" />
                 <span>2. Multi-Source Research</span>
               </div>
               <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px' }}>
@@ -980,12 +845,12 @@ export const ChatHub: React.FC<ChatHubProps> = ({ onSearch, isSearching, activeJ
 
             <div style={{
               padding: '10px',
-              background: 'rgba(255, 255, 255, 0.03)',
+              background: 'var(--chip-bg)',
               borderRadius: '8px',
               border: '1px solid var(--border-subtle)',
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.775rem', fontWeight: 600, color: '#a5b4fc' }}>
-                <CheckCircle2 size={14} color="#34d399" />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.775rem', fontWeight: 600, color: 'var(--accent-primary)' }}>
+                <CheckCircle2 size={14} color="#10b981" />
                 <span>3. Verification & Dedup</span>
               </div>
               <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px' }}>
@@ -995,12 +860,12 @@ export const ChatHub: React.FC<ChatHubProps> = ({ onSearch, isSearching, activeJ
 
             <div style={{
               padding: '10px',
-              background: 'rgba(255, 255, 255, 0.03)',
+              background: 'var(--chip-bg)',
               borderRadius: '8px',
               border: '1px solid var(--border-subtle)',
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.775rem', fontWeight: 600, color: '#a5b4fc' }}>
-                <CheckCircle2 size={14} color="#34d399" />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.775rem', fontWeight: 600, color: 'var(--accent-primary)' }}>
+                <CheckCircle2 size={14} color="#10b981" />
                 <span>4. Scoring & Strategy</span>
               </div>
               <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px' }}>
@@ -1013,4 +878,3 @@ export const ChatHub: React.FC<ChatHubProps> = ({ onSearch, isSearching, activeJ
     </div>
   );
 };
-

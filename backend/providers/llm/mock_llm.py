@@ -387,7 +387,7 @@ class MockLLMProvider(LLMProviderBase):
         return [
             {
                 "speaker": "agent",
-                "text": f"Hello {contact_person}! This is Antigravity Voice Assistant calling from Digital Growth Lab regarding {business_name} in {city}. Am I speaking with the owner?",
+                "text": f"Hello {contact_person}! This is Priya calling from Digital Growth Hub regarding {business_name} in {city}. Am I speaking with the owner?",
                 "turn_index": 0,
                 "sentiment": "positive"
             },

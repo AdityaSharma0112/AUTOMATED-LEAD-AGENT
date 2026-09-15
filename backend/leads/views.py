@@ -338,8 +338,8 @@ def twilio_voice_webhook(request):
     city = lead.city if lead else "Solan"
 
     opening_text = (
-        f"Hello {contact_person}! This is Antigravity Voice Assistant calling on behalf of Digital Growth Lab. "
-        f"I'm reaching out regarding {business_name} in {city}. Am I speaking with the owner or manager?"
+        f"Hello {contact_person}! This is Priya calling from Digital Growth Hub regarding {business_name} in {city}. "
+        f"Am I speaking with the owner or manager?"
     )
 
     host = request.build_absolute_uri('/')
@@ -367,7 +367,7 @@ def twilio_turn_webhook(request):
     if not call_session:
         from providers.telephony.twilio_provider import TwilioProvider
         twiml = TwilioProvider().generate_twiml_response(
-            "Thank you for speaking with Digital Growth Lab. Have a wonderful day.",
+            "Thank you for speaking with Priya from Digital Growth Hub. Have a wonderful day.",
             "",
             is_final=True
         )

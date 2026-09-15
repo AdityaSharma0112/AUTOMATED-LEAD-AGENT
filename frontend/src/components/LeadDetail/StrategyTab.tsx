@@ -20,10 +20,12 @@ import {
   Clock,
   DollarSign,
   Briefcase,
-  AlertCircle
+  AlertCircle,
+  Download
 } from 'lucide-react';
 import { Lead, Strategy, SolutionItem, OfferPackage, ObjectionResponse } from '../../types/lead';
 import { api } from '../../services/api';
+import { exportStrategyProposal, exportCompleteLeadDossier } from '../../utils/exportLead';
 
 interface StrategyTabProps {
   lead: Lead;
@@ -45,6 +47,7 @@ export const StrategyTab: React.FC<StrategyTabProps> = ({ lead, onLeadUpdated })
   const [editPitchScript, setEditPitchScript] = useState('');
   const [editPricingGuidance, setEditPricingGuidance] = useState('');
   const [editFitRationale, setEditFitRationale] = useState('');
+  const [editFollowUpDate, setEditFollowUpDate] = useState('');
 
   const strat = lead.strategy;
 
@@ -56,14 +59,23 @@ export const StrategyTab: React.FC<StrategyTabProps> = ({ lead, onLeadUpdated })
       setEditPitchScript(strat.pitch_script || '');
       setEditPricingGuidance(strat.pricing_guidance || '');
       setEditFitRationale(strat.fit_rationale || '');
+      setEditFollowUpDate(strat.follow_up_date || lead.follow_up_date || '');
     }
-  }, [strat]);
+  }, [strat, lead]);
 
   const handleCopyPitch = () => {
     if (!strat?.pitch_script) return;
     navigator.clipboard.writeText(strat.pitch_script);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleDownloadProposal = () => {
+    exportStrategyProposal(lead, strat);
+  };
+
+  const handleDownloadFullDossier = () => {
+    exportCompleteLeadDossier(lead);
   };
 
   const handleRegenerate = async () => {
@@ -107,6 +119,7 @@ export const StrategyTab: React.FC<StrategyTabProps> = ({ lead, onLeadUpdated })
         pitch_script: editPitchScript,
         pricing_guidance: editPricingGuidance,
         fit_rationale: editFitRationale,
+        follow_up_date: editFollowUpDate,
       });
       setIsEditing(false);
       onLeadUpdated();
@@ -157,14 +170,36 @@ export const StrategyTab: React.FC<StrategyTabProps> = ({ lead, onLeadUpdated })
             <Briefcase size={18} />
           </div>
           <div>
-            <h3 style={{ fontSize: '1.05rem', fontWeight: 800, margin: 0 }}>Tailored Next Step & Delivery Plan</h3>
+            <h3 style={{ fontSize: '1.05rem', fontWeight: 800, margin: 0 }}>Sales Strategy & Next Move Plan</h3>
             <p style={{ fontSize: '0.775rem', color: 'var(--text-secondary)', margin: 0 }}>
-              Synthesized exact client demands & Digital Growth Lab delivery roadmap for {lead.business_name}
+              Tailored proposal & Digital Growth Hub delivery roadmap for {lead.business_name}
             </p>
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          {/* Download Strategy Proposal */}
+          <button
+            onClick={handleDownloadProposal}
+            className="btn btn-secondary"
+            style={{ padding: '6px 12px', fontSize: '0.75rem' }}
+            title="Download formatted Strategy & Proposal Markdown file"
+          >
+            <Download size={13} />
+            <span>Download Strategy & Pitch</span>
+          </button>
+
+          {/* Download Complete Dossier */}
+          <button
+            onClick={handleDownloadFullDossier}
+            className="btn btn-secondary"
+            style={{ padding: '6px 12px', fontSize: '0.75rem' }}
+            title="Download full 360° Lead Dossier with Call Transcripts & Intelligence"
+          >
+            <FileText size={13} />
+            <span>Export 360° Dossier</span>
+          </button>
+
           {isEditing ? (
             <>
               <button
@@ -193,7 +228,7 @@ export const StrategyTab: React.FC<StrategyTabProps> = ({ lead, onLeadUpdated })
                 style={{ padding: '6px 12px', fontSize: '0.75rem' }}
               >
                 <Edit3 size={13} />
-                <span>Edit Plan Manually</span>
+                <span>Edit Plan</span>
               </button>
               <button
                 onClick={handleRegenerate}
@@ -386,7 +421,7 @@ export const StrategyTab: React.FC<StrategyTabProps> = ({ lead, onLeadUpdated })
         </div>
       </div>
 
-      {/* SECTION 2: WHAT DIGITAL GROWTH LAB CAN DO & DELIVER */}
+      {/* SECTION 2: WHAT DIGITAL GROWTH HUB CAN DO & DELIVER */}
       {strat.recommended_solutions && strat.recommended_solutions.length > 0 && (
         <div style={{
           padding: '18px',
@@ -397,9 +432,9 @@ export const StrategyTab: React.FC<StrategyTabProps> = ({ lead, onLeadUpdated })
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <PackageCheck size={16} color="var(--accent-primary)" />
-              <h4 style={{ fontSize: '0.875rem', fontWeight: 700, margin: 0 }}>
-                WHAT DIGITAL GROWTH LAB WILL DELIVER (ACTION PLAN & SERVICES)
-              </h4>
+              <div style={{ fontWeight: 800, fontSize: '0.85rem', color: '#10b981', letterSpacing: '0.02em' }}>
+                WHAT DIGITAL GROWTH HUB WILL DELIVER (ACTION PLAN & SERVICES)
+              </div>
             </div>
             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
               Tailored high-converting deliverables
@@ -535,7 +570,7 @@ export const StrategyTab: React.FC<StrategyTabProps> = ({ lead, onLeadUpdated })
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 700, fontSize: '0.85rem' }}>
             <MessageSquare size={15} color="var(--accent-primary)" />
-            <span>TAILORED OUTREACH & SALES PITCH SCRIPT</span>
+            <span>TAILORED OUTREACH & SALES PITCH SCRIPT (PRIYA)</span>
           </div>
           <button onClick={handleCopyPitch} className="btn btn-secondary" style={{ padding: '4px 10px', fontSize: '0.75rem' }}>
             {copied ? <Check size={12} color="#34d399" /> : <Copy size={12} />}
@@ -587,7 +622,7 @@ export const StrategyTab: React.FC<StrategyTabProps> = ({ lead, onLeadUpdated })
         </div>
       )}
 
-      {/* SECTION 6: NEXT STEP & FOLLOW-UP ACTION */}
+      {/* SECTION 6: NEXT MOVE & FOLLOW-UP ACTION */}
       <div style={{
         padding: '16px 18px',
         background: 'rgba(16, 185, 129, 0.08)',
@@ -599,10 +634,10 @@ export const StrategyTab: React.FC<StrategyTabProps> = ({ lead, onLeadUpdated })
         flexWrap: 'wrap',
         gap: '12px',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: '240px' }}>
           <Calendar size={20} color="#34d399" style={{ flexShrink: 0 }} />
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>RECOMMENDED NEXT ACTION</div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>RECOMMENDED NEXT MOVE</div>
             {isEditing ? (
               <input
                 type="text"
@@ -619,8 +654,21 @@ export const StrategyTab: React.FC<StrategyTabProps> = ({ lead, onLeadUpdated })
           </div>
         </div>
 
-        <div className="badge badge-success" style={{ fontSize: '0.75rem' }}>
-          Follow-up: {strat.follow_up_date || 'Within 24-48 Hours'}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {isEditing ? (
+            <input
+              type="text"
+              placeholder="e.g. 2026-09-20 or Tomorrow"
+              className="input-field"
+              value={editFollowUpDate}
+              onChange={(e) => setEditFollowUpDate(e.target.value)}
+              style={{ fontSize: '0.75rem', width: '180px' }}
+            />
+          ) : (
+            <div className="badge badge-success" style={{ fontSize: '0.75rem' }}>
+              Follow-up Date: {strat.follow_up_date || lead.follow_up_date || 'Within 24-48 Hours'}
+            </div>
+          )}
         </div>
       </div>
     </div>

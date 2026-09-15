@@ -23,8 +23,8 @@ class MockTelephonyProvider(TelephonyProviderBase):
         city = lead_context.get("city", "Solan")
 
         opening_text = (
-            f"Hello {contact_person}! This is Antigravity Voice Assistant calling on behalf of Digital Growth Lab. "
-            f"I'm reaching out regarding {business_name} in {city}. Am I speaking with the owner or manager?"
+            f"Hello {contact_person}! This is Priya calling from Digital Growth Hub regarding {business_name} in {city}. "
+            f"Am I speaking with the owner or manager?"
         )
 
         return {
@@ -141,7 +141,7 @@ class MockTelephonyProvider(TelephonyProviderBase):
         return [
             {
                 "speaker": "agent",
-                "text": f"Hello {contact_person}! This is Antigravity Voice Assistant calling on behalf of Digital Growth Lab regarding {business_name} in {city}. Am I speaking with the owner?",
+                "text": f"Hello {contact_person}! This is Priya calling from Digital Growth Hub regarding {business_name} in {city}. Am I speaking with the owner?",
                 "turn_index": 0,
                 "sentiment": "positive"
             },

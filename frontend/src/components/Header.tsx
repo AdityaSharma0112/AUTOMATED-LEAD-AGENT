@@ -1,8 +1,20 @@
 import React from 'react';
-import { ShieldAlert, ShieldCheck, Download, Settings, Activity, Sparkles, Trash2 } from 'lucide-react';
+import {
+  ShieldAlert,
+  ShieldCheck,
+  Download,
+  Settings,
+  Activity,
+  Sparkles,
+  Trash2,
+  Sun,
+  Moon
+} from 'lucide-react';
 import { api } from '../services/api';
 
 interface HeaderProps {
+  theme: 'dark' | 'light';
+  onToggleTheme: () => void;
   killSwitchActive: boolean;
   onToggleKillSwitch: () => void;
   onOpenSettings: () => void;
@@ -13,6 +25,8 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({
+  theme,
+  onToggleTheme,
   killSwitchActive,
   onToggleKillSwitch,
   onOpenSettings,
@@ -28,11 +42,13 @@ export const Header: React.FC<HeaderProps> = ({
       justifyContent: 'space-between',
       padding: '14px 28px',
       borderBottom: '1px solid var(--border-subtle)',
-      background: 'rgba(10, 13, 20, 0.85)',
-      backdropFilter: 'blur(12px)',
+      background: 'var(--header-bg)',
+      backdropFilter: 'blur(16px)',
+      WebkitBackdropFilter: 'blur(16px)',
       position: 'sticky',
       top: 0,
       zIndex: 100,
+      transition: 'background-color 0.25s ease, border-color 0.25s ease',
     }}>
       {/* Brand & Multi-Agent Tag */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
@@ -44,18 +60,15 @@ export const Header: React.FC<HeaderProps> = ({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          boxShadow: '0 0 20px rgba(99, 102, 241, 0.5)',
+          boxShadow: '0 0 20px rgba(99, 102, 241, 0.4)',
         }}>
           <Sparkles size={22} color="#ffffff" />
         </div>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <h1 style={{ fontSize: '1.15rem', fontWeight: 800, letterSpacing: '-0.02em' }}>
-              ANTIGRAVITY <span className="gradient-text">LEAD AGENT</span>
+            <h1 style={{ fontSize: '1.15rem', fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
+              <span className="gradient-text">[AUTOMATED-LEAD-AGENT]</span>
             </h1>
-            <span className="badge badge-info" style={{ fontSize: '0.7rem' }}>
-              v1.0 • Real Multi-Agent
-            </span>
           </div>
           <p style={{ fontSize: '0.775rem', color: 'var(--text-secondary)' }}>
             100% Real Geodata, Web Verification, Voice Qualification & Strategy
@@ -64,30 +77,33 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* Agents Status & Controls */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-        {/* Active Agents Pulse */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          padding: '6px 14px',
-          background: 'rgba(255, 255, 255, 0.04)',
-          borderRadius: '20px',
-          border: '1px solid var(--border-subtle)',
-          fontSize: '0.8rem',
-          color: 'var(--text-secondary)',
-        }}>
-          <div style={{
-            width: '8px',
-            height: '8px',
-            borderRadius: '50%',
-            background: 'var(--success)',
-            boxShadow: '0 0 10px #10b981',
-          }} className="live-pulse" />
-          <span><strong>5 Agents</strong> Online</span>
-          <span style={{ color: 'var(--text-muted)' }}>|</span>
-          <span>{totalLeadsCount} Leads</span>
-        </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        {/* Theme Toggle (Dark / Light Mode) */}
+        <button
+          onClick={onToggleTheme}
+          className="btn btn-secondary"
+          style={{
+            padding: '8px 12px',
+            borderRadius: 'var(--radius-md)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            cursor: 'pointer',
+          }}
+          title={theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode"}
+        >
+          {theme === 'dark' ? (
+            <>
+              <Sun size={15} color="#fbbf24" />
+              <span style={{ fontSize: '0.775rem', fontWeight: 600 }}>Light</span>
+            </>
+          ) : (
+            <>
+              <Moon size={15} color="#6366f1" />
+              <span style={{ fontSize: '0.775rem', fontWeight: 600 }}>Dark</span>
+            </>
+          )}
+        </button>
 
         {/* Direct AI Phone Caller */}
         {onOpenQuickCall && (
@@ -97,8 +113,7 @@ export const Header: React.FC<HeaderProps> = ({
             style={{
               padding: '7px 14px',
               fontWeight: 700,
-              boxShadow: '0 0 15px rgba(99, 102, 241, 0.4)',
-              background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+              boxShadow: '0 0 15px rgba(99, 102, 241, 0.3)',
             }}
             title="Call any custom number or client with the AI Voice Agent"
           >
@@ -112,7 +127,7 @@ export const Header: React.FC<HeaderProps> = ({
           onClick={onToggleKillSwitch}
           className={`btn ${killSwitchActive ? 'btn-danger' : 'btn-secondary'}`}
           style={{
-            borderColor: killSwitchActive ? '#ef4444' : 'rgba(255, 255, 255, 0.1)',
+            borderColor: killSwitchActive ? '#ef4444' : 'var(--border-subtle)',
             boxShadow: killSwitchActive ? '0 0 15px rgba(239, 68, 68, 0.4)' : 'none',
           }}
           title={killSwitchActive ? "Calling Kill Switch ACTIVE (Click to Disarm)" : "Click to ACTIVATE Emergency Kill Switch"}
@@ -124,7 +139,7 @@ export const Header: React.FC<HeaderProps> = ({
             </>
           ) : (
             <>
-              <ShieldCheck size={16} color="#34d399" />
+              <ShieldCheck size={16} color="#10b981" />
               <span>Kill Switch Ready</span>
             </>
           )}
@@ -135,7 +150,7 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             onClick={onClearAllLeads}
             className="btn btn-secondary"
-            style={{ padding: '8px 12px', color: '#f87171' }}
+            style={{ padding: '8px 12px', color: 'var(--danger)' }}
             title="Wipe all leads and start completely fresh"
           >
             <Trash2 size={15} />

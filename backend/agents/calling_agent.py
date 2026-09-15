@@ -141,7 +141,7 @@ class CallingAgent(BaseAgent):
         )
 
         opening_text = (
-            f"Hello {lead.contact_person or 'there'}! This is Antigravity Voice Assistant calling on behalf of Digital Growth Lab regarding {lead.business_name} in {lead.city}. "
+            f"Hello {lead.contact_person or 'there'}! This is Priya calling from Digital Growth Hub regarding {lead.business_name} in {lead.city}. "
             f"Am I speaking with the owner or manager?"
         )
 

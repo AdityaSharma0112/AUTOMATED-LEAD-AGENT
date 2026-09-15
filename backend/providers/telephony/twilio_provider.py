@@ -58,8 +58,8 @@ class TwilioProvider(TelephonyProviderBase):
         city = lead_context.get("city", "Solan")
 
         opening_text = (
-            f"Hello {contact_person}! This is Antigravity Voice Assistant calling on behalf of Digital Growth Lab. "
-            f"I'm reaching out regarding {business_name} in {city}. Am I speaking with the owner or manager?"
+            f"Hello {contact_person}! This is Priya calling from Digital Growth Hub regarding {business_name} in {city}. "
+            f"Am I speaking with the owner or manager?"
         )
 
         try:

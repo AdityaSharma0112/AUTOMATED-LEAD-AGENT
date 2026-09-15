@@ -80,9 +80,13 @@ class LeadListSerializer(serializers.ModelSerializer):
     """Lightweight serializer for table and list views."""
     sources_count = serializers.IntegerField(source='sources.count', read_only=True)
     conflicts_count = serializers.IntegerField(source='conflicts.count', read_only=True)
+    calls_count = serializers.IntegerField(source='calls.count', read_only=True)
     has_strategy = serializers.SerializerMethodField()
     has_intelligence = serializers.SerializerMethodField()
     review_summary = serializers.SerializerMethodField()
+    interest_status = serializers.SerializerMethodField()
+    follow_up_date = serializers.SerializerMethodField()
+    latest_call = serializers.SerializerMethodField()
 
     class Meta:
         model = Lead
@@ -114,8 +118,12 @@ class LeadListSerializer(serializers.ModelSerializer):
             'opted_out',
             'sources_count',
             'conflicts_count',
+            'calls_count',
             'has_strategy',
             'has_intelligence',
+            'interest_status',
+            'follow_up_date',
+            'latest_call',
             'created_at',
             'updated_at',
         ]
@@ -131,6 +139,30 @@ class LeadListSerializer(serializers.ModelSerializer):
 
     def get_has_intelligence(self, obj):
         return hasattr(obj, 'intelligence')
+
+    def get_interest_status(self, obj):
+        if hasattr(obj, 'intelligence') and obj.intelligence:
+            return obj.intelligence.interest_status
+        if obj.opted_out:
+            return 'opted_out'
+        return None
+
+    def get_follow_up_date(self, obj):
+        if hasattr(obj, 'strategy') and obj.strategy:
+            return obj.strategy.follow_up_date
+        return None
+
+    def get_latest_call(self, obj):
+        first_call = obj.calls.first()
+        if first_call:
+            return {
+                "id": str(first_call.id),
+                "status": first_call.status,
+                "duration_seconds": first_call.duration_seconds,
+                "call_type": first_call.call_type,
+                "created_at": first_call.created_at.isoformat() if first_call.created_at else None
+            }
+        return None
 
 
 class LeadDetailSerializer(serializers.ModelSerializer):

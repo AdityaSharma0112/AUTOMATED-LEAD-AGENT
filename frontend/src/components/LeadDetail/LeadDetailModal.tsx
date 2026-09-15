@@ -15,10 +15,12 @@ import {
   Sparkles,
   RefreshCw,
   ExternalLink,
-  AlertTriangle
+  AlertTriangle,
+  Download
 } from 'lucide-react';
 import { Lead } from '../../types/lead';
 import { api } from '../../services/api';
+import { exportCompleteLeadDossier, exportStrategyProposal } from '../../utils/exportLead';
 import { CallCenterTab } from './CallCenterTab';
 import { IntelligenceTab } from './IntelligenceTab';
 import { StrategyTab } from './StrategyTab';
@@ -152,6 +154,26 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button
+              onClick={() => exportStrategyProposal(lead, lead.strategy)}
+              className="btn btn-secondary"
+              style={{ fontSize: '0.775rem', padding: '6px 12px' }}
+              title="Download Sales Strategy & Proposal Document"
+            >
+              <Download size={13} />
+              <span>Download Strategy</span>
+            </button>
+
+            <button
+              onClick={() => exportCompleteLeadDossier(lead)}
+              className="btn btn-secondary"
+              style={{ fontSize: '0.775rem', padding: '6px 12px' }}
+              title="Download Complete Lead Intelligence & Call Dossier"
+            >
+              <Download size={13} />
+              <span>Export Dossier</span>
+            </button>
+
             <button
               onClick={handleToggleApproval}
               className={`btn ${lead.calling_approved ? 'btn-success' : 'btn-secondary'}`}

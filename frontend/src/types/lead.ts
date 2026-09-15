@@ -160,8 +160,12 @@ export interface Lead {
   opted_out: boolean;
   sources_count?: number;
   conflicts_count?: number;
+  calls_count?: number;
   has_strategy?: boolean;
   has_intelligence?: boolean;
+  interest_status?: 'interested_hot' | 'interested_warm' | 'call_back' | 'not_interested' | 'opted_out' | null;
+  follow_up_date?: string | null;
+  latest_call?: { id: string; status: string; duration_seconds: number; call_type: string; created_at: string } | null;
   created_at: string;
   updated_at: string;
 

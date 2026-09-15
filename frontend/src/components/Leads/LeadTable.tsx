@@ -26,9 +26,13 @@ import {
   Layers,
   Filter,
   RotateCcw,
-  Sparkles
+  Sparkles,
+  Calendar,
+  AlertOctagon,
+  Download
 } from 'lucide-react';
 import { Lead } from '../../types/lead';
+import { exportStrategyProposal } from '../../utils/exportLead';
 
 interface LeadTableProps {
   leads: Lead[];
@@ -203,6 +207,58 @@ export const LeadTable: React.FC<LeadTableProps> = ({
     return <span className={`score-pill ${cls}`}>{score}/100</span>;
   };
 
+  const renderCallDisposition = (lead: Lead) => {
+    const totalCalls = lead.calls ? lead.calls.length : (lead.calls_count || 0);
+    const interest = lead.intelligence?.interest_status || lead.interest_status;
+    const followUp = lead.strategy?.follow_up_date || lead.follow_up_date;
+
+    if (lead.opted_out || interest === 'opted_out') {
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+          <span className="badge badge-danger" style={{ fontSize: '0.68rem', width: 'fit-content' }}>
+            🔴 DNC (Opted Out)
+          </span>
+          <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+            {totalCalls > 0 ? `${totalCalls} Call${totalCalls > 1 ? 's' : ''} held` : 'No calls'}
+          </span>
+        </div>
+      );
+    }
+
+    if (totalCalls === 0) {
+      return (
+        <span className="badge badge-secondary" style={{ fontSize: '0.68rem' }}>
+          ⚪ No Calls Yet
+        </span>
+      );
+    }
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
+          <span className="badge badge-info" style={{ fontSize: '0.68rem', fontWeight: 700 }}>
+            Call #{totalCalls} {totalCalls > 1 ? '(Repeat)' : ''}
+          </span>
+          {interest === 'interested_hot' || interest === 'hot' ? (
+            <span className="badge badge-success" style={{ fontSize: '0.65rem' }}>🟢 Hot</span>
+          ) : interest === 'interested_warm' || interest === 'warm' ? (
+            <span className="badge badge-warning" style={{ fontSize: '0.65rem' }}>🟡 Warm</span>
+          ) : interest === 'call_back' ? (
+            <span className="badge badge-info" style={{ fontSize: '0.65rem' }}>🔵 Follow-up</span>
+          ) : (
+            <span className="badge badge-secondary" style={{ fontSize: '0.65rem' }}>⚪ Qualified</span>
+          )}
+        </div>
+        {followUp && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.68rem', color: '#6ee7b7' }}>
+            <Calendar size={10} />
+            <span>{followUp}</span>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="glass-panel" style={{ padding: '24px' }}>
       {/* Header & Stats Bar */}
@@ -227,7 +283,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
         {/* View Switch & Quick Actions */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           <div style={{
-            background: 'rgba(0, 0, 0, 0.3)',
+            background: 'var(--tab-bg)',
             borderRadius: '8px',
             border: '1px solid var(--border-subtle)',
             padding: '2px',
@@ -263,7 +319,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
             <button
               onClick={onClearAllLeads}
               className="btn btn-secondary"
-              style={{ fontSize: '0.75rem', padding: '5px 10px', color: '#f87171' }}
+              style={{ fontSize: '0.75rem', padding: '5px 10px', color: 'var(--danger)' }}
               title="Delete all leads and start fresh"
             >
               <Trash2 size={13} />
@@ -296,8 +352,8 @@ export const LeadTable: React.FC<LeadTableProps> = ({
               borderRadius: '16px',
               fontSize: '0.75rem',
               fontWeight: selectedArea === 'all' ? 700 : 500,
-              background: selectedArea === 'all' ? 'var(--accent-primary)' : 'rgba(255, 255, 255, 0.04)',
-              color: selectedArea === 'all' ? '#fff' : 'var(--text-secondary)',
+              background: selectedArea === 'all' ? 'var(--accent-primary)' : 'var(--chip-bg)',
+              color: selectedArea === 'all' ? '#fff' : 'var(--chip-text)',
               border: `1px solid ${selectedArea === 'all' ? 'var(--accent-primary)' : 'var(--border-subtle)'}`,
               cursor: 'pointer',
               whiteSpace: 'nowrap',
@@ -316,9 +372,9 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                 borderRadius: '16px',
                 fontSize: '0.75rem',
                 fontWeight: selectedArea === area ? 700 : 500,
-                background: selectedArea === area ? 'rgba(99, 102, 241, 0.25)' : 'rgba(255, 255, 255, 0.03)',
-                color: selectedArea === area ? '#818cf8' : 'var(--text-primary)',
-                border: `1px solid ${selectedArea === area ? 'rgba(99, 102, 241, 0.6)' : 'var(--border-subtle)'}`,
+                background: selectedArea === area ? 'var(--chip-active-bg)' : 'var(--chip-bg)',
+                color: selectedArea === area ? 'var(--accent-primary)' : 'var(--chip-text)',
+                border: `1px solid ${selectedArea === area ? 'var(--chip-active-border)' : 'var(--border-subtle)'}`,
                 cursor: 'pointer',
                 whiteSpace: 'nowrap',
                 transition: 'all 0.15s ease',
@@ -337,7 +393,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
         gap: '10px',
         marginBottom: '18px',
         padding: '14px',
-        background: 'rgba(0, 0, 0, 0.25)',
+        background: 'var(--tab-bg)',
         borderRadius: 'var(--radius-md)',
         border: '1px solid var(--border-subtle)',
       }}>
@@ -483,7 +539,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
               <div
                 key={areaName}
                 style={{
-                  background: 'rgba(0, 0, 0, 0.25)',
+                  background: 'var(--tab-bg)',
                   border: '1px solid var(--border-subtle)',
                   borderRadius: 'var(--radius-md)',
                   overflow: 'hidden',
@@ -492,7 +548,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                 {/* Area Group Header */}
                 <div style={{
                   padding: '10px 16px',
-                  background: 'rgba(99, 102, 241, 0.1)',
+                  background: 'var(--chip-active-bg)',
                   borderBottom: '1px solid var(--border-subtle)',
                   display: 'flex',
                   alignItems: 'center',
@@ -525,16 +581,16 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                       key={lead.id}
                       style={{
                         padding: '12px 14px',
-                        background: 'rgba(255, 255, 255, 0.02)',
-                        border: '1px solid rgba(255, 255, 255, 0.06)',
+                        background: 'var(--bg-card)',
+                        border: '1px solid var(--border-subtle)',
                         borderRadius: '8px',
                         display: 'flex',
                         flexDirection: 'column',
                         gap: '8px',
                         transition: 'all 0.15s ease',
                       }}
-                      onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'rgba(99, 102, 241, 0.4)')}
-                      onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.06)')}
+                      onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'var(--accent-primary)')}
+                      onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--border-subtle)')}
                     >
                       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
                         <div>
@@ -549,7 +605,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                       </div>
 
                       <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <Phone size={12} color="#34d399" />
+                        <Phone size={12} color="#10b981" />
                         <span>{lead.phone || 'No phone'}</span>
                       </div>
 
@@ -557,12 +613,16 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                         {renderWebsiteStatusBadge(lead.website_status, lead.website_confidence, lead.website_url)}
                       </div>
 
+                      <div style={{ marginTop: '2px' }}>
+                        {renderCallDisposition(lead)}
+                      </div>
+
                       <div style={{
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
                         paddingTop: '6px',
-                        borderTop: '1px solid rgba(255, 255, 255, 0.05)',
+                        borderTop: '1px solid var(--border-subtle)',
                         marginTop: '2px',
                       }}>
                         <button
@@ -575,10 +635,18 @@ export const LeadTable: React.FC<LeadTableProps> = ({
 
                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                           <button
+                            onClick={() => exportStrategyProposal(lead, lead.strategy)}
+                            className="btn btn-secondary"
+                            style={{ padding: '4px 7px', fontSize: '0.7rem' }}
+                            title="Download Sales Strategy & Proposal"
+                          >
+                            <Download size={11} />
+                          </button>
+                          <button
                             onClick={() => onStartCall(lead)}
                             className="btn btn-primary"
                             style={{ padding: '4px 8px', fontSize: '0.7rem' }}
-                            disabled={!lead.calling_approved}
+                            disabled={!lead.calling_approved || lead.opted_out}
                           >
                             <PhoneCall size={11} />
                             <span>Call</span>
@@ -607,6 +675,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
               <thead>
                 <tr style={{
                   borderBottom: '1px solid var(--border-card)',
+                  background: 'var(--table-head-bg)',
                   color: 'var(--text-muted)',
                   fontSize: '0.73rem',
                   textTransform: 'uppercase',
@@ -618,6 +687,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                   <th style={{ padding: '12px 14px' }}>Website Status</th>
                   <th style={{ padding: '12px 14px' }}>Reputation</th>
                   <th style={{ padding: '12px 14px' }}>Score</th>
+                  <th style={{ padding: '12px 14px' }}>Call Status & Move</th>
                   <th style={{ padding: '12px 14px', textAlign: 'center' }}>Call Approval</th>
                   <th style={{ padding: '12px 14px', textAlign: 'right' }}>Actions</th>
                 </tr>
@@ -625,7 +695,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
               <tbody>
                 {paginatedLeads.length === 0 ? (
                   <tr>
-                    <td colSpan={8} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+                    <td colSpan={9} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
                       {isLoading ? 'Loading leads...' : 'No leads match the selected area and filters.'}
                     </td>
                   </tr>
@@ -637,7 +707,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                         borderBottom: '1px solid var(--border-subtle)',
                         transition: 'background 0.15s ease',
                       }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)')}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--table-row-hover)')}
                       onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                     >
                       {/* Business Name & ID */}
@@ -709,6 +779,11 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                         {renderScorePill(lead.lead_score)}
                       </td>
 
+                      {/* Call Status & Move */}
+                      <td style={{ padding: '12px 14px' }}>
+                        {renderCallDisposition(lead)}
+                      </td>
+
                       {/* Approval Gate Toggle */}
                       <td style={{ padding: '12px 14px', textAlign: 'center' }}>
                         <button
@@ -736,11 +811,26 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                       <td style={{ padding: '12px 14px', textAlign: 'right' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
                           <button
+                            onClick={() => exportStrategyProposal(lead, lead.strategy)}
+                            className="btn btn-secondary"
+                            style={{ padding: '5px 8px', fontSize: '0.72rem' }}
+                            title="Download Sales Strategy & Proposal"
+                          >
+                            <Download size={12} />
+                            <span>Strategy</span>
+                          </button>
+
+                          <button
                             onClick={() => onStartCall(lead)}
                             className="btn btn-primary"
-                            style={{ padding: '5px 10px', fontSize: '0.72rem' }}
-                            disabled={!lead.calling_approved}
-                            title={lead.calling_approved ? "Start Live Voice Call" : "Requires calling approval"}
+                            style={{
+                              padding: '5px 10px',
+                              fontSize: '0.72rem',
+                              opacity: lead.opted_out ? 0.4 : 1,
+                              cursor: lead.opted_out ? 'not-allowed' : 'pointer',
+                            }}
+                            disabled={!lead.calling_approved || lead.opted_out}
+                            title={lead.opted_out ? "Client requested Do Not Call (DNC)" : lead.calling_approved ? "Start Live Voice Call" : "Requires calling approval"}
                           >
                             <PhoneCall size={12} />
                             <span>Call</span>
@@ -840,7 +930,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
                           borderRadius: '6px',
                           fontSize: '0.75rem',
                           fontWeight: currentPage === p ? 700 : 500,
-                          background: currentPage === p ? 'var(--accent-primary)' : 'rgba(255, 255, 255, 0.04)',
+                          background: currentPage === p ? 'var(--accent-primary)' : 'var(--btn-secondary-bg)',
                           color: currentPage === p ? '#fff' : 'var(--text-primary)',
                           border: `1px solid ${currentPage === p ? 'var(--accent-primary)' : 'var(--border-subtle)'}`,
                           cursor: 'pointer',

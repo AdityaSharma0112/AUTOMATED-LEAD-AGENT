@@ -109,7 +109,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, onSetting
               <Globe size={15} color="var(--accent-primary)" />
               <span>REAL BUSINESS DATA PROVIDERS (100% FREE)</span>
             </label>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: 'rgba(0, 0, 0, 0.25)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: 'var(--tab-bg)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.825rem' }}>
                 <span className="badge badge-success" style={{ fontSize: '0.65rem' }}>ACTIVE</span>
                 <span><strong>OpenStreetMap Overpass API</strong> (Global ground-truth physical businesses)</span>
