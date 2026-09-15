@@ -728,9 +728,10 @@ export const CallCenterTab: React.FC<CallCenterTabProps> = ({ lead, onLeadUpdate
               className="btn btn-secondary"
               style={{ padding: '4px 10px', fontSize: '0.72rem' }}
               disabled={!activeCall}
+              title="Download Call Record and Dialogue Transcript as Microsoft Word document"
             >
               <Download size={12} />
-              <span>Export Record (.txt)</span>
+              <span>Export Record (.doc)</span>
             </button>
           </div>
         </div>

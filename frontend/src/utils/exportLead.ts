@@ -1,15 +1,147 @@
 import { Lead, CallSession, Strategy } from '../types/lead';
 
 /**
- * Trigger download of any text content as a file in the browser reliably
+ * Trigger download of formatted Microsoft Word (.doc) document in the browser
  */
-export function downloadTextFile(content: string, filename: string, mimeType: string = 'text/markdown;charset=utf-8;') {
+export function downloadWordDocument(htmlBody: string, filename: string, title: string = 'Document') {
   try {
-    const blob = new Blob([content], { type: mimeType });
+    const wordDocumentContent = `<!DOCTYPE html>
+<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+<head>
+  <meta charset="utf-8">
+  <title>${title}</title>
+  <!--[if gte mso 9]>
+  <xml>
+    <w:WordDocument>
+      <w:View>Print</w:View>
+      <w:Zoom>100</w:Zoom>
+      <w:DoNotOptimizeForBrowser/>
+    </w:WordDocument>
+  </xml>
+  <![endif]-->
+  <style>
+    body {
+      font-family: 'Calibri', 'Segoe UI', Arial, sans-serif;
+      font-size: 11pt;
+      line-height: 1.6;
+      color: #1e293b;
+      margin: 40px;
+    }
+    h1 {
+      font-size: 20pt;
+      color: #1e3a8a;
+      border-bottom: 2px solid #2563eb;
+      padding-bottom: 8px;
+      margin-bottom: 16px;
+      font-weight: bold;
+    }
+    h2 {
+      font-size: 13pt;
+      color: #1e40af;
+      margin-top: 22px;
+      margin-bottom: 8px;
+      border-bottom: 1px solid #cbd5e1;
+      padding-bottom: 4px;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    h3 {
+      font-size: 11.5pt;
+      color: #334155;
+      margin-top: 14px;
+      margin-bottom: 6px;
+      font-weight: bold;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      margin-bottom: 16px;
+    }
+    th, td {
+      border: 1px solid #cbd5e1;
+      padding: 8px 12px;
+      text-align: left;
+      font-size: 10.5pt;
+      vertical-align: top;
+    }
+    th {
+      background-color: #f1f5f9;
+      font-weight: bold;
+      color: #0f172a;
+      width: 25%;
+    }
+    .badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 9pt;
+      font-weight: bold;
+      background: #e0e7ff;
+      color: #3730a3;
+    }
+    .badge-success { background: #dcfce7; color: #166534; }
+    .badge-danger { background: #fee2e2; color: #991b1b; }
+    .badge-warning { background: #fef3c7; color: #92400e; }
+    .card {
+      border: 1px solid #e2e8f0;
+      background: #f8fafc;
+      padding: 14px;
+      border-radius: 6px;
+      margin-bottom: 12px;
+    }
+    .pitch-quote {
+      border-left: 4px solid #10b981;
+      background: #f0fdf4;
+      padding: 12px 16px;
+      font-style: italic;
+      color: #065f46;
+      margin: 14px 0;
+      font-size: 11pt;
+    }
+    .dialogue-turn {
+      margin-bottom: 8px;
+      padding: 8px 12px;
+      border-radius: 4px;
+    }
+    .dialogue-agent {
+      background: #eff6ff;
+      border-left: 3px solid #3b82f6;
+    }
+    .dialogue-client {
+      background: #f0fdf4;
+      border-left: 3px solid #10b981;
+    }
+    .speaker-name {
+      font-weight: bold;
+      font-size: 9.5pt;
+      margin-bottom: 2px;
+    }
+    .speaker-agent { color: #2563eb; }
+    .speaker-client { color: #059669; }
+    .footer {
+      font-size: 9pt;
+      color: #64748b;
+      margin-top: 30px;
+      border-top: 1px solid #e2e8f0;
+      padding-top: 8px;
+    }
+  </style>
+</head>
+<body>
+${htmlBody}
+<div class="footer">
+  <strong>[AUTOMATED-LEAD-AGENT]</strong> • Generated on ${new Date().toLocaleString()} • Voice Consultant: Priya (Digital Growth Hub)
+</div>
+</body>
+</html>`;
+
+    const blob = new Blob([wordDocumentContent], { type: 'application/msword;charset=utf-8;' });
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = filename;
+    link.download = filename.endsWith('.doc') ? filename : `${filename}.doc`;
     link.style.display = 'none';
     document.body.appendChild(link);
     link.click();
@@ -24,13 +156,13 @@ export function downloadTextFile(content: string, filename: string, mimeType: st
       }
     }, 2000);
   } catch (err: any) {
-    console.error('Download error:', err);
-    alert(`Download failed: ${err.message}`);
+    console.error('Word document export error:', err);
+    alert(`Failed to download Word document: ${err.message}`);
   }
 }
 
 /**
- * Generates and downloads the Call Record & Conversation Transcript for a specific Call Session
+ * Generates and downloads the Call Record & Conversation Transcript as a Microsoft Word (.doc) document
  */
 export function exportCallRecord(lead: Lead, callSession: CallSession | null, callIndex: number = 1) {
   try {
@@ -42,58 +174,59 @@ export function exportCallRecord(lead: Lead, callSession: CallSession | null, ca
     const durationStr = callSession?.duration_seconds ? `${Math.floor(callSession.duration_seconds / 60)}m ${callSession.duration_seconds % 60}s` : '0s';
     const isRepeatCall = callIndex > 1;
 
-    let content = `# CALL RECORD: ${lead.business_name || 'Client'} (Call #${callIndex})
-Generated: ${new Date().toLocaleString()}
-Agent: Priya (Digital Growth Hub)
-
-================================================================================
-CALL METADATA & STATUS
-================================================================================
-Client Name:        ${lead.business_name || 'N/A'}
-Contact Phone:      ${lead.phone || 'N/A'}
-Contact Email:      ${lead.email || 'N/A'}
-Call Number:        Call #${callIndex} ${isRepeatCall ? '(Repeat / Follow-up Call)' : '(Initial Outreach)'}
-Call Date & Time:   ${dateStr}
-Call Duration:      ${durationStr}
-Call Status:        ${(callSession?.status || 'COMPLETED').toUpperCase()}
-Outcome / State:    ${callSession?.outcome ? String(callSession.outcome).toUpperCase() : 'N/A'}
-Customer Sentiment: ${callSession?.sentiment || 'N/A'}
-Interest Level:     ${callSession?.interest_level || lead.interest_status || 'N/A'}
-Do Not Call / DNC:  ${lead.opted_out ? 'YES (Client requested not to call again)' : 'NO (Active)'}
-Next Follow-up:     ${lead.follow_up_date || lead.strategy?.follow_up_date || 'Not Scheduled'}
-
-================================================================================
-CALL SUMMARY & NEXT ACTION
-================================================================================
-${callSession?.summary ? callSession.summary : 'No summary recorded.'}
-
-Key Objections Raised:
-${callSession?.objections && Array.isArray(callSession.objections) && callSession.objections.length > 0 ? callSession.objections.map(obj => ` - ${obj}`).join('\n') : ' - None recorded'}
-
-Recommended Next Move:
-${lead.strategy?.next_action || 'Review conversation and arrange follow-up.'}
-
-================================================================================
-FULL CONVERSATION TRANSCRIPT (PRIYA <-> CLIENT)
-================================================================================
-`;
-
+    let turnsHtml = '';
     if (callSession?.transcript_turns && Array.isArray(callSession.transcript_turns) && callSession.transcript_turns.length > 0) {
-      const turnsText = callSession.transcript_turns
+      turnsHtml = callSession.transcript_turns
         .map((turn, i) => {
-          const speaker = turn.speaker === 'agent' ? 'Priya (AI Consultant)' : `${lead.business_name || 'Client'}`;
+          const isAgent = turn.speaker === 'agent';
+          const speaker = isAgent ? 'Priya (Digital Growth Hub)' : (lead.contact_person || lead.business_name || 'Client');
           const time = turn.created_at ? ` [${new Date(turn.created_at).toLocaleTimeString()}]` : '';
-          return `[${i + 1}] ${speaker}${time}:\n"${turn.text}"\n`;
+          return `
+            <div class="dialogue-turn ${isAgent ? 'dialogue-agent' : 'dialogue-client'}">
+              <div class="speaker-name ${isAgent ? 'speaker-agent' : 'speaker-client'}">
+                #${i + 1} ${speaker}${time}
+              </div>
+              <div>"${turn.text}"</div>
+            </div>
+          `;
         })
-        .join('\n');
-      content += turnsText;
+        .join('');
     } else {
-      content += 'No transcript turns recorded for this call session.\n';
+      turnsHtml = '<p style="color: #64748b; font-style: italic;">No conversation transcript turns recorded for this call session.</p>';
     }
 
+    const htmlBody = `
+      <h1>CALL RECORD: ${lead.business_name || 'Client'} (Call #${callIndex})</h1>
+      
+      <h2>1. Call Metadata & Status</h2>
+      <table>
+        <tr><th>Client Name</th><td>${lead.business_name || 'N/A'}</td></tr>
+        <tr><th>Contact Phone</th><td>${lead.phone || 'N/A'}</td></tr>
+        <tr><th>Contact Email</th><td>${lead.email || 'N/A'}</td></tr>
+        <tr><th>Call Type</th><td>Call #${callIndex} ${isRepeatCall ? '<span class="badge badge-warning">Repeat / Follow-up Call</span>' : '<span class="badge">Initial Outreach</span>'}</td></tr>
+        <tr><th>Call Date & Time</th><td>${dateStr}</td></tr>
+        <tr><th>Call Duration</th><td>${durationStr}</td></tr>
+        <tr><th>Call Status</th><td><strong>${(callSession?.status || 'COMPLETED').toUpperCase()}</strong></td></tr>
+        <tr><th>Outcome</th><td>${callSession?.outcome ? String(callSession.outcome).toUpperCase() : 'N/A'}</td></tr>
+        <tr><th>Customer Sentiment</th><td>${callSession?.sentiment || 'N/A'}</td></tr>
+        <tr><th>Interest Level</th><td>${callSession?.interest_level || lead.interest_status || 'N/A'}</td></tr>
+        <tr><th>Do Not Call (DNC)</th><td>${lead.opted_out ? '<span class="badge badge-danger">YES - Client Opted Out</span>' : '<span class="badge badge-success">NO - Active</span>'}</td></tr>
+        <tr><th>Next Scheduled Follow-up</th><td><strong>${lead.follow_up_date || lead.strategy?.follow_up_date || 'Not Scheduled'}</strong></td></tr>
+      </table>
+
+      <h2>2. Call Summary & Recommended Next Action</h2>
+      <div class="card">
+        <p><strong>Summary:</strong> ${callSession?.summary ? callSession.summary : 'Call concluded normally.'}</p>
+        <p><strong>Recommended Next Move:</strong> ${lead.strategy?.next_action || 'Review conversation insights and arrange follow-up.'}</p>
+      </div>
+
+      <h2>3. Full Spoken Dialogue Transcript (Priya &harr; Client)</h2>
+      ${turnsHtml}
+    `;
+
     const safeName = (lead.business_name || 'lead').replace(/[^a-z0-9_-]/gi, '_');
-    const filename = `Call_Record_Call${callIndex}_${safeName}.txt`;
-    downloadTextFile(content, filename, 'text/plain;charset=utf-8;');
+    const filename = `Call_Record_Call${callIndex}_${safeName}.doc`;
+    downloadWordDocument(htmlBody, filename, `Call Record - ${lead.business_name}`);
   } catch (err: any) {
     console.error('Failed to export call record:', err);
     alert(`Failed to export call record: ${err.message}`);
@@ -101,7 +234,7 @@ FULL CONVERSATION TRANSCRIPT (PRIYA <-> CLIENT)
 }
 
 /**
- * Generates and downloads the Sales Pitch Strategy and Proposal
+ * Generates and downloads the Sales Pitch Strategy and Proposal as a Microsoft Word (.doc) document
  */
 export function exportStrategyProposal(lead: Lead, strategy?: Strategy | null) {
   try {
@@ -112,106 +245,113 @@ export function exportStrategyProposal(lead: Lead, strategy?: Strategy | null) {
     const strat = strategy || lead.strategy;
     const dateStr = new Date().toLocaleDateString();
 
-    let content = `# SALES STRATEGY & PROPOSAL DOSSIER
-Client: ${lead.business_name || 'Valued Business'}
-Prepared By: Priya | Digital Growth Hub
-Date: ${dateStr}
-
-================================================================================
-1. EXECUTIVE SUMMARY & TARGET PROFILE
-================================================================================
-Business Name:      ${lead.business_name || 'N/A'}
-Category / Niche:   ${lead.category || 'General Business'}
-Location / Address: ${lead.address || (lead.locality ? `${lead.locality}, ${lead.city}` : lead.city) || 'N/A'}
-Website:            ${lead.website || lead.website_url || 'N/A'}
-Contact Phone:      ${lead.phone || 'N/A'}
-Primary Pain Points:
-${lead.pain_points && Array.isArray(lead.pain_points) && lead.pain_points.length > 0 ? lead.pain_points.map(p => ` • ${p}`).join('\n') : ' • Under-optimized online visibility, missing local digital capture'}
-
-================================================================================
-2. PROBLEM STATEMENT & OPPORTUNITY
-================================================================================
-Problem Statement:
-${strat?.problem_statement || 'Business is missing inbound organic leads due to lack of automated local web presence and search discovery.'}
-
-Revenue Opportunity:
-${strat?.opportunity || 'Capture high-intent local customer queries and convert calls into direct bookings 24/7.'}
-
-================================================================================
-3. CUSTOM SALES PITCH SCRIPT (PRIYA'S PLAYBOOK)
-================================================================================
-"${strat?.pitch_script || lead.intelligence?.next_sales_pitch_hook || `Hello ${lead.contact_person || 'there'}, Priya here from Digital Growth Hub. We noticed your business ${lead.business_name || 'here'} has great potential and we'd love to help automate your customer booking and digital visibility!`}"
-
-================================================================================
-4. TAILORED OFFER PACKAGES & PROPOSALS
-================================================================================
-`;
-
+    let packagesHtml = '';
     if (strat?.offer_packages && Array.isArray(strat.offer_packages) && strat.offer_packages.length > 0) {
-      strat.offer_packages.forEach((pkg: any, index: number) => {
-        const tierName = pkg.tier || pkg.name || `Package #${index + 1}`;
-        const priceVal = pkg.price || 'Contact for pricing';
-        const features = pkg.features || pkg.deliverables || [];
-        content += `
---------------------------------------------------------------------------------
-PACKAGE #${index + 1}: ${String(tierName).toUpperCase()}
-Price: ${priceVal}
-Deliverables:
-${Array.isArray(features) && features.length > 0 ? features.map((d: any) => `  ✓ ${d}`).join('\n') : '  ✓ Complete digital growth & AI booking setup'}
---------------------------------------------------------------------------------
-`;
-      });
+      packagesHtml = strat.offer_packages
+        .map((pkg: any, index: number) => {
+          const tierName = pkg.tier || pkg.name || `Package #${index + 1}`;
+          const priceVal = pkg.price || 'Contact for pricing';
+          const features = pkg.features || pkg.deliverables || [];
+          const featuresList = Array.isArray(features) && features.length > 0
+            ? features.map((f: any) => `<li>${f}</li>`).join('')
+            : '<li>Custom digital presence and automated booking setup</li>';
+          return `
+            <div class="card" style="margin-bottom: 14px;">
+              <h3 style="color: #1e3a8a; margin-top: 0;">Package #${index + 1}: ${String(tierName).toUpperCase()}</h3>
+              <p style="font-size: 13pt; font-weight: bold; color: #059669; margin: 4px 0;">Price: ${priceVal}</p>
+              <p style="font-weight: bold; margin-bottom: 4px;">Deliverables & Inclusions:</p>
+              <ul style="margin-top: 4px;">${featuresList}</ul>
+            </div>
+          `;
+        })
+        .join('');
     } else {
-      content += `
-- Standard Growth Package: ₹3,999/mo (Local SEO, Google Profile Optimization, Automated AI Booking)
-- Scale Accelerator Package: ₹7,999/mo (Complete CRM integration, WhatsApp Lead Auto-Responder, AI Calling Receptionist)
-`;
+      packagesHtml = `
+        <div class="card">
+          <h3 style="color: #1e3a8a; margin-top: 0;">Standard Growth Package</h3>
+          <p style="font-size: 13pt; font-weight: bold; color: #059669; margin: 4px 0;">Price: ₹3,999/month</p>
+          <ul>
+            <li>Google Maps Top-3 Local Ranking Optimization</li>
+            <li>Direct WhatsApp AI Booking Integration (Zero commission)</li>
+            <li>Free SSL & Fast Mobile Responsive Landing Page</li>
+          </ul>
+        </div>
+      `;
     }
 
-    content += `
-================================================================================
-5. OBJECTION HANDLING GUIDE
-================================================================================
-`;
-
+    let objectionsHtml = '';
     const objections = strat?.objections_and_responses || (strat as any)?.objection_guide;
     if (objections && Array.isArray(objections) && objections.length > 0) {
-      objections.forEach((guide: any) => {
-        content += `
-[Objection]: "${guide.objection || 'Common hesitation'}"
-[Priya's Response]: "${guide.response || guide.rebuttal || 'We offer zero-risk launch with guaranteed turnaround.'}"
-`;
-      });
+      objectionsHtml = objections
+        .map((guide: any) => `
+          <div class="card" style="margin-bottom: 8px;">
+            <p style="color: #dc2626; font-weight: bold; margin: 0 0 4px 0;">[Objection]: "${guide.objection || 'Common hesitation'}"</p>
+            <p style="color: #059669; margin: 0;"><strong>[Priya's Suggested Response]:</strong> "${guide.response || guide.rebuttal || 'We offer a 14-day zero-risk turnaround guarantee.'}"</p>
+          </div>
+        `)
+        .join('');
     } else {
-      content += `
-[Objection]: "We already have an agency / handling this in-house."
-[Priya's Response]: "That's wonderful! We don't replace your team; we supply high-converting AI automation tools that amplify their results with zero extra hours required."
-
-[Objection]: "Send me details on WhatsApp/Email first."
-[Priya's Response]: "Absolutely, I'll send our exact audit breakdown to your WhatsApp right now. Let's touch base briefly on Friday once you've had a moment to review it."
-`;
+      objectionsHtml = `
+        <div class="card">
+          <p style="color: #dc2626; font-weight: bold; margin: 0 0 4px 0;">[Objection]: "We already have an agency / handling this in-house."</p>
+          <p style="color: #059669; margin: 0;"><strong>[Priya's Response]:</strong> "That's wonderful! We don't replace your team; we supply high-converting AI automation tools that amplify their results with zero extra hours required."</p>
+        </div>
+      `;
     }
 
-    content += `
-================================================================================
-6. NEXT MOVE & ACTION PLAN
-================================================================================
-Recommended Next Move: ${strat?.next_action || 'Schedule follow-up consultation and share live demo.'}
-Scheduled Follow-up:   ${strat?.follow_up_date || lead.follow_up_date || 'Within 24-48 Hours'}
-Lead Status:           ${lead.opted_out ? 'DO NOT CONTACT (Opted Out)' : (lead.status ? String(lead.status).toUpperCase() : 'ACTIVE')}
-`;
+    const htmlBody = `
+      <h1>SALES STRATEGY & PROPOSAL DOSSIER</h1>
+      <p style="font-size: 12pt; color: #475569; margin-top: -10px;">
+        <strong>Client:</strong> ${lead.business_name || 'Valued Business'} &bull; <strong>Prepared By:</strong> Priya (Digital Growth Hub) &bull; <strong>Date:</strong> ${dateStr}
+      </p>
+
+      <h2>1. Executive Summary & Target Profile</h2>
+      <table>
+        <tr><th>Business Name</th><td>${lead.business_name || 'N/A'}</td></tr>
+        <tr><th>Industry / Niche</th><td>${lead.category || 'General Business'}</td></tr>
+        <tr><th>Location</th><td>${lead.address || (lead.locality ? `${lead.locality}, ${lead.city}` : lead.city) || 'N/A'}</td></tr>
+        <tr><th>Website Presence</th><td>${lead.website || lead.website_url || 'Likely Absent / Under-optimized'}</td></tr>
+        <tr><th>Phone Contact</th><td>${lead.phone || 'N/A'}</td></tr>
+        <tr><th>Key Pain Points</th><td>${lead.pain_points && Array.isArray(lead.pain_points) && lead.pain_points.length > 0 ? lead.pain_points.join('<br>&bull; ') : 'Under-optimized online visibility, missing local digital capture'}</td></tr>
+      </table>
+
+      <h2>2. Problem Statement & Growth Opportunity</h2>
+      <div class="card">
+        <p><strong>Identified Problem:</strong> ${strat?.problem_statement || 'Business is missing inbound organic leads due to lack of automated local web presence and search discovery.'}</p>
+        <p><strong>Digital Growth Opportunity:</strong> ${strat?.opportunity || 'Capture high-intent local customer queries and convert calls into direct bookings 24/7.'}</p>
+        ${strat?.fit_rationale ? `<p><strong>Fit Rationale:</strong> ${strat.fit_rationale}</p>` : ''}
+      </div>
+
+      <h2>3. Custom Sales Pitch Script (Priya's Playbook)</h2>
+      <div class="pitch-quote">
+        "${strat?.pitch_script || lead.intelligence?.next_sales_pitch_hook || `Hello ${lead.contact_person || 'there'}, Priya here from Digital Growth Hub. We noticed your business ${lead.business_name || 'here'} has great potential and we'd love to help automate your customer booking and digital visibility!`}"
+      </div>
+
+      <h2>4. Tailored Offer Packages & Proposals</h2>
+      ${packagesHtml}
+
+      <h2>5. Anticipated Objections & Rebuttal Guide</h2>
+      ${objectionsHtml}
+
+      <h2>6. Recommended Next Move & Timeline</h2>
+      <table>
+        <tr><th>Recommended Next Move</th><td><strong>${strat?.next_action || 'Schedule discovery consultation call.'}</strong></td></tr>
+        <tr><th>Scheduled Follow-up</th><td>${strat?.follow_up_date || lead.follow_up_date || 'Within 24-48 Hours'}</td></tr>
+        <tr><th>Client Status</th><td>${lead.opted_out ? '<span class="badge badge-danger">DO NOT CALL (Opted Out)</span>' : '<span class="badge badge-success">ACTIVE PIPELINE</span>'}</td></tr>
+      </table>
+    `;
 
     const safeName = (lead.business_name || 'lead').replace(/[^a-z0-9_-]/gi, '_');
-    const filename = `Strategy_Proposal_${safeName}.md`;
-    downloadTextFile(content, filename);
+    const filename = `Strategy_Proposal_${safeName}.doc`;
+    downloadWordDocument(htmlBody, filename, `Strategy Proposal - ${lead.business_name}`);
   } catch (err: any) {
-    console.error('Failed to export strategy:', err);
-    alert(`Failed to export strategy: ${err.message}`);
+    console.error('Failed to export strategy proposal:', err);
+    alert(`Failed to export strategy proposal: ${err.message}`);
   }
 }
 
 /**
- * Generates and downloads the Complete 360° Lead Dossier (Data + Calls + Strategy)
+ * Generates and downloads the Complete 360° Lead Dossier as a Microsoft Word (.doc) document
  */
 export function exportCompleteLeadDossier(lead: Lead) {
   try {
@@ -220,80 +360,91 @@ export function exportCompleteLeadDossier(lead: Lead) {
       return;
     }
     const callsCount = lead.calls ? lead.calls.length : (lead.calls_count || 0);
-    const safeName = (lead.business_name || 'lead').replace(/[^a-z0-9_-]/gi, '_');
+    const dateStr = new Date().toLocaleString();
 
-    let content = `# COMPLETE LEAD INTELLIGENCE DOSSIER: ${lead.business_name || 'Lead'}
-Export Date: ${new Date().toLocaleString()}
-System: [AUTOMATED-LEAD-AGENT]
-
---------------------------------------------------------------------------------
-LEAD OVERVIEW
---------------------------------------------------------------------------------
-Business Name:     ${lead.business_name || 'N/A'}
-Category:          ${lead.category || 'N/A'}
-Phone:             ${lead.phone || 'N/A'}
-Email:             ${lead.email || 'N/A'}
-Website:           ${lead.website || lead.website_url || 'N/A'}
-Address:           ${lead.address || (lead.locality ? `${lead.locality}, ${lead.city}` : lead.city) || 'N/A'}
-Overall Score:     ${lead.lead_score || lead.overall_score || 0}/100
-Lead Status:       ${lead.opted_out ? 'DO NOT CONTACT (Opted Out)' : (lead.status ? String(lead.status).toUpperCase() : 'ACTIVE')}
-Do Not Call (DNC): ${lead.opted_out ? 'YES (Client requested not to be called)' : 'NO (Active)'}
-Total Calls Held:  ${callsCount}
-Next Follow-up:    ${lead.follow_up_date || lead.strategy?.follow_up_date || 'Not scheduled'}
-
---------------------------------------------------------------------------------
-VERIFIED AUDIT & METRICS
---------------------------------------------------------------------------------
-Google Rating:     ${lead.rating ? `${lead.rating} ★ (${lead.review_count || 0} reviews)` : 'N/A'}
-SEO Score:         ${lead.seo_audit?.score ?? 'N/A'}/100
-Mobile Friendly:   ${lead.seo_audit?.mobile_friendly ? 'Yes' : 'No'}
-Load Speed:        ${lead.seo_audit?.load_speed_seconds ? `${lead.seo_audit.load_speed_seconds}s` : 'N/A'}
-SSL Secure:        ${lead.seo_audit?.has_ssl ? 'Yes' : 'No'}
-
-Social Footprint:
-- Instagram:       ${lead.social_footprint?.instagram_url || 'N/A'}
-- Facebook:        ${lead.social_footprint?.facebook_url || 'N/A'}
-- LinkedIn:        ${lead.social_footprint?.linkedin_url || 'N/A'}
-
---------------------------------------------------------------------------------
-SALES STRATEGY & NEXT MOVE
---------------------------------------------------------------------------------
-Next Move:         ${lead.strategy?.next_action || 'Follow up with tailored proposal.'}
-Scheduled Followup:${lead.strategy?.follow_up_date || lead.follow_up_date || 'None'}
-Pitch Script:
-${lead.strategy?.pitch_script || lead.intelligence?.next_sales_pitch_hook || 'Standard Consultative Pitch'}
-
---------------------------------------------------------------------------------
-CALL HISTORY & TRANSCRIPTS (${callsCount} Calls Recorded)
---------------------------------------------------------------------------------
-`;
-
+    let callsHtml = '';
     if (lead.calls && Array.isArray(lead.calls) && lead.calls.length > 0) {
-      lead.calls.forEach((c, idx) => {
-        const callNum = idx + 1;
-        content += `
-### Call #${callNum} - ${c.created_at ? new Date(c.created_at).toLocaleString() : 'Recent'}
-- Duration: ${c.duration_seconds ? `${Math.floor(c.duration_seconds / 60)}m ${c.duration_seconds % 60}s` : '0s'}
-- Outcome: ${c.outcome || 'N/A'} | Sentiment: ${c.sentiment || 'N/A'} | Interest: ${c.interest_level || 'N/A'}
-- Summary: ${c.summary || 'N/A'}
+      callsHtml = lead.calls
+        .map((c, idx) => {
+          const callNum = idx + 1;
+          const duration = c.duration_seconds ? `${Math.floor(c.duration_seconds / 60)}m ${c.duration_seconds % 60}s` : '0s';
+          const callDate = c.created_at ? new Date(c.created_at).toLocaleString() : 'Recent';
+          
+          let turns = '';
+          if (c.transcript_turns && Array.isArray(c.transcript_turns) && c.transcript_turns.length > 0) {
+            turns = c.transcript_turns
+              .map(t => {
+                const isAgent = t.speaker === 'agent';
+                const spk = isAgent ? 'Priya (AI Consultant)' : `${lead.business_name || 'Client'}`;
+                return `<div class="dialogue-turn ${isAgent ? 'dialogue-agent' : 'dialogue-client'}"><strong>${spk}:</strong> "${t.text}"</div>`;
+              })
+              .join('');
+          } else {
+            turns = '<p style="color: #64748b; font-style: italic;">No transcript turns recorded for this call.</p>';
+          }
 
-Transcript:
-`;
-        if (c.transcript_turns && Array.isArray(c.transcript_turns) && c.transcript_turns.length > 0) {
-          c.transcript_turns.forEach(turn => {
-            const spk = turn.speaker === 'agent' ? 'Priya (Digital Growth Hub)' : `${lead.business_name || 'Client'}`;
-            content += `[${spk}]: ${turn.text}\n`;
-          });
-        } else {
-          content += '(No turns recorded)\n';
-        }
-        content += `\n--------------------------------------------------------------------------------\n`;
-      });
+          return `
+            <div class="card" style="margin-bottom: 16px;">
+              <h3 style="color: #1e3a8a; margin-top: 0;">Call #${callNum} &bull; ${callDate}</h3>
+              <p><strong>Duration:</strong> ${duration} &bull; <strong>Outcome:</strong> ${c.outcome || 'N/A'} &bull; <strong>Sentiment:</strong> ${c.sentiment || 'N/A'} &bull; <strong>Interest:</strong> ${c.interest_level || 'N/A'}</p>
+              <p><strong>Summary:</strong> ${c.summary || 'N/A'}</p>
+              <h4 style="margin-bottom: 6px; font-size: 10pt; text-transform: uppercase; color: #475569;">Dialogue Transcript:</h4>
+              ${turns}
+            </div>
+          `;
+        })
+        .join('');
     } else {
-      content += 'No call sessions recorded for this lead yet.\n';
+      callsHtml = '<p style="color: #64748b; font-style: italic;">No voice calls recorded for this lead yet.</p>';
     }
 
-    downloadTextFile(content, `Lead_Dossier_${safeName}.md`);
+    const htmlBody = `
+      <h1>COMPLETE 360&deg; LEAD INTELLIGENCE DOSSIER</h1>
+      <p style="font-size: 12pt; color: #475569; margin-top: -10px;">
+        <strong>Business:</strong> ${lead.business_name || 'Lead'} &bull; <strong>Export Date:</strong> ${dateStr} &bull; <strong>System:</strong> [AUTOMATED-LEAD-AGENT]
+      </p>
+
+      <h2>1. Verified Lead Profile & Contact Data</h2>
+      <table>
+        <tr><th>Business Name</th><td><strong>${lead.business_name || 'N/A'}</strong></td></tr>
+        <tr><th>Category / Niche</th><td>${lead.category || 'N/A'}</td></tr>
+        <tr><th>Direct Phone</th><td>${lead.phone || 'N/A'}</td></tr>
+        <tr><th>Email</th><td>${lead.email || 'N/A'}</td></tr>
+        <tr><th>Website</th><td>${lead.website || lead.website_url || 'N/A'}</td></tr>
+        <tr><th>Address / Locality</th><td>${lead.address || (lead.locality ? `${lead.locality}, ${lead.city}` : lead.city) || 'N/A'}</td></tr>
+        <tr><th>Lead Score</th><td><strong>${lead.lead_score || lead.overall_score || 0}/100</strong></td></tr>
+        <tr><th>Pipeline Status</th><td>${lead.opted_out ? '<span class="badge badge-danger">DO NOT CALL (Opted Out)</span>' : '<span class="badge badge-success">ACTIVE PIPELINE</span>'}</td></tr>
+        <tr><th>Total Calls Held</th><td>${callsCount} Call${callsCount === 1 ? '' : 's'}</td></tr>
+        <tr><th>Next Follow-up</th><td><strong>${lead.follow_up_date || lead.strategy?.follow_up_date || 'Not scheduled'}</strong></td></tr>
+      </table>
+
+      <h2>2. Digital Audit & Verification Intelligence</h2>
+      <table>
+        <tr><th>Google Rating</th><td>${lead.rating ? `${lead.rating} ★ (${lead.review_count || 0} reviews)` : 'N/A'}</td></tr>
+        <tr><th>SEO Score</th><td>${lead.seo_audit?.score ?? 'N/A'}/100</td></tr>
+        <tr><th>Mobile Friendly</th><td>${lead.seo_audit?.mobile_friendly ? 'Yes' : 'No'}</td></tr>
+        <tr><th>Load Speed</th><td>${lead.seo_audit?.load_speed_seconds ? `${lead.seo_audit.load_speed_seconds}s` : 'N/A'}</td></tr>
+        <tr><th>SSL Security</th><td>${lead.seo_audit?.has_ssl ? 'Secure (HTTPS)' : 'Insecure / Missing SSL'}</td></tr>
+        <tr><th>Social Footprint</th><td>Instagram: ${lead.social_footprint?.instagram_url || 'N/A'}<br>Facebook: ${lead.social_footprint?.facebook_url || 'N/A'}<br>LinkedIn: ${lead.social_footprint?.linkedin_url || 'N/A'}</td></tr>
+      </table>
+
+      <h2>3. Sales Strategy & Recommended Next Move</h2>
+      <div class="card">
+        <p><strong>Next Action:</strong> <strong>${lead.strategy?.next_action || 'Follow up with tailored proposal.'}</strong></p>
+        <p><strong>Follow-up Timeline:</strong> ${lead.strategy?.follow_up_date || lead.follow_up_date || 'Within 24-48 Hours'}</p>
+        <p><strong>Priya's Sales Pitch:</strong></p>
+        <div class="pitch-quote">
+          "${lead.strategy?.pitch_script || lead.intelligence?.next_sales_pitch_hook || 'Standard Consultative Pitch'}"
+        </div>
+      </div>
+
+      <h2>4. Complete Voice Call History & Dialogue Transcripts (${callsCount} Calls Recorded)</h2>
+      ${callsHtml}
+    `;
+
+    const safeName = (lead.business_name || 'lead').replace(/[^a-z0-9_-]/gi, '_');
+    const filename = `Lead_Dossier_${safeName}.doc`;
+    downloadWordDocument(htmlBody, filename, `Lead Dossier - ${lead.business_name}`);
   } catch (err: any) {
     console.error('Failed to export dossier:', err);
     alert(`Failed to export dossier: ${err.message}`);
