@@ -83,56 +83,68 @@ class SendOTPAPIView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        email = request.data.get("email", "").strip().lower()
-        if not email or not re.match(r"[^@]+@[^@]+\.[^@]+", email):
-            return Response({"error": "Please provide a valid email address."}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Generate 6-digit numeric OTP
-        otp_code = f"{secrets.randbelow(900000) + 100000}"
-        expires_at = timezone.now() + datetime.timedelta(minutes=10)
-
-        # Invalidate prior active OTPs for this email
-        EmailOTP.objects.filter(email=email, is_used=False).update(is_used=True)
-
-        EmailOTP.objects.create(
-            email=email,
-            otp_code=otp_code,
-            expires_at=expires_at
-        )
-
-        # Send Email notification
-        subject = f"[AUTOMATED-LEAD-AGENT] Your Verification Code: {otp_code}"
-        message = (
-            f"Hello,\n\n"
-            f"Your one-time login & signup verification code is:\n\n"
-            f"   {otp_code}\n\n"
-            f"This code will expire in 10 minutes.\n"
-            f"If you did not request this, please ignore this email.\n\n"
-            f"— Priya from Digital Growth Hub"
-        )
         try:
-            send_mail(
-                subject=subject,
-                message=message,
-                from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@digitalgrowthhub.ai'),
-                recipient_list=[email],
-                fail_silently=False
+            email = request.data.get("email", "").strip().lower()
+            if not email or not re.match(r"[^@]+@[^@]+\.[^@]+", email):
+                return Response({"error": "Please provide a valid email address."}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Generate 6-digit numeric OTP
+            otp_code = f"{secrets.randbelow(900000) + 100000}"
+            expires_at = timezone.now() + datetime.timedelta(minutes=10)
+
+            # Invalidate prior active OTPs for this email
+            EmailOTP.objects.filter(email=email, is_used=False).update(is_used=True)
+
+            EmailOTP.objects.create(
+                email=email,
+                otp_code=otp_code,
+                expires_at=expires_at
             )
-            logger.info(f"Successfully sent OTP email to {email}")
+
+            # Send Email notification
+            subject = f"[AUTOMATED-LEAD-AGENT] Your Verification Code: {otp_code}"
+            message = (
+                f"Hello,\n\n"
+                f"Your one-time login & signup verification code is:\n\n"
+                f"   {otp_code}\n\n"
+                f"This code will expire in 10 minutes.\n"
+                f"If you did not request this, please ignore this email.\n\n"
+                f"— Priya from Digital Growth Hub"
+            )
+            # Send Email notification asynchronously in background thread so HTTP response returns instantly
+            import threading
+            has_smtp = bool(getattr(settings, 'EMAIL_HOST_USER', '') and getattr(settings, 'EMAIL_HOST_PASSWORD', ''))
+
+            if has_smtp:
+                def _async_send_email():
+                    try:
+                        send_mail(
+                            subject=subject,
+                            message=message,
+                            from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@digitalgrowthhub.ai'),
+                            recipient_list=[email],
+                            fail_silently=True
+                        )
+                        logger.info(f"Successfully sent OTP email to {email}")
+                    except Exception as e:
+                        logger.error(f"Failed to send email to {email} via SMTP: {e}")
+                        print(f"[EMAIL ERROR] Could not deliver OTP email to {email}: {e}")
+
+                threading.Thread(target=_async_send_email, daemon=True).start()
+
+            response_data = {
+                "success": True,
+                "message": f"Verification code sent to {email}" if has_smtp else f"Verification code: {otp_code}",
+                "email": email,
+            }
+            # If SMTP is not configured or in debug mode, provide dev_otp on screen for instant access
+            if settings.DEBUG or not has_smtp:
+                response_data["dev_otp"] = otp_code
+
+            return Response(response_data, status=status.HTTP_200_OK)
         except Exception as e:
-            logger.error(f"Failed to send email to {email} via SMTP: {e}")
-            print(f"[EMAIL ERROR] Could not deliver OTP email to {email}: {e}")
-
-        response_data = {
-            "success": True,
-            "message": f"Verification code sent to {email}",
-            "email": email,
-        }
-        # In debug mode, include dev_otp for instantaneous testing/verification
-        if settings.DEBUG:
-            response_data["dev_otp"] = otp_code
-
-        return Response(response_data, status=status.HTTP_200_OK)
+            logger.exception("SendOTP error")
+            return Response({"error": f"Failed to generate OTP: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class VerifyOTPAPIView(APIView):
