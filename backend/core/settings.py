@@ -161,7 +161,7 @@ EMAIL_PORT = int(os.getenv('EMAIL_PORT', 587))
 EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True') == 'True'
 EMAIL_USE_SSL = os.getenv('EMAIL_USE_SSL', 'False') == 'True'
 EMAIL_HOST_USER = _email_user
-EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '').strip()
-EMAIL_TIMEOUT = int(os.getenv('EMAIL_TIMEOUT', 5))
-DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', _email_user or 'Priya - Digital Growth Hub <noreply@digitalgrowthhub.ai>')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '').replace(' ', '').strip()
+EMAIL_TIMEOUT = int(os.getenv('EMAIL_TIMEOUT', 10))
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', '').strip() or (f"Priya - Digital Growth Hub <{_email_user}>" if _email_user else 'Priya - Digital Growth Hub <noreply@digitalgrowthhub.ai>')
 

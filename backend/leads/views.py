@@ -118,10 +118,11 @@ class SendOTPAPIView(APIView):
             if has_smtp:
                 def _async_send_email():
                     try:
+                        from_addr = getattr(settings, 'DEFAULT_FROM_EMAIL', '') or settings.EMAIL_HOST_USER
                         send_mail(
                             subject=subject,
                             message=message,
-                            from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@digitalgrowthhub.ai'),
+                            from_email=from_addr,
                             recipient_list=[email],
                             fail_silently=False
                         )
