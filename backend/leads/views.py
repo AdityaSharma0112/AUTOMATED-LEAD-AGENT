@@ -580,6 +580,8 @@ def twilio_voice_webhook(request):
     try:
         session_id = request.GET.get("session_id") or request.POST.get("session_id")
         call_session = get_call_session_safe(session_id)
+        if not call_session:
+            call_session = CallSession.objects.order_by('-started_at').first()
 
         lead = call_session.lead if call_session else None
         business_name = lead.business_name if lead else (call_session.custom_business_name if call_session else "your business")
@@ -604,7 +606,8 @@ def twilio_voice_webhook(request):
         if not host.startswith("http://") and not host.startswith("https://"):
             host = f"https://{host}"
 
-        sid_query = f"?session_id={session_id}" if session_id else ""
+        effective_sid = str(call_session.id) if call_session else (session_id or "")
+        sid_query = f"?session_id={effective_sid}" if effective_sid else ""
         next_turn_url = f"{host.rstrip('/')}/api/calls/twilio/turn{sid_query}"
 
         from providers.telephony.twilio_provider import TwilioProvider
@@ -618,8 +621,8 @@ def twilio_voice_webhook(request):
         print(f"[Twilio Webhook Error] {e}")
         from providers.telephony.twilio_provider import TwilioProvider
         twiml = TwilioProvider().generate_twiml_response(
-            "Hello! This is Priya from Digital Growth Hub. Am I speaking with the owner or manager?",
-            "",
+            "Hello! This is Priya from Digital Growth Hub regarding your business. Am I speaking with the owner or manager?",
+            "https://automated-lead-agent.onrender.com/api/calls/twilio/turn",
             is_final=False
         )
         return HttpResponse(twiml, content_type='text/xml; charset=utf-8')
@@ -638,26 +641,24 @@ def twilio_turn_webhook(request):
 
         call_session = get_call_session_safe(session_id)
         if not call_session:
-            from providers.telephony.twilio_provider import TwilioProvider
-            twiml = TwilioProvider().generate_twiml_response(
-                "Thank you for speaking with Priya from Digital Growth Hub. Have a wonderful day.",
-                "",
-                is_final=True
-            )
-            return HttpResponse(twiml, content_type='text/xml; charset=utf-8')
+            call_session = CallSession.objects.order_by('-started_at').first()
 
         calling_agent = CallingAgent()
-        turn_count = call_session.transcript_turns.count()
+        turn_count = call_session.transcript_turns.count() if call_session else 1
         if speech_result:
-            res = calling_agent.process_turn(call_session, speech_result)
-            agent_resp = res.get("agent_response", "I understand. How else can we assist your business?")
-            action = res.get("action", "continue")
+            if call_session:
+                res = calling_agent.process_turn(call_session, speech_result)
+                agent_resp = res.get("agent_response", "I understand. We help local businesses capture more customer orders on WhatsApp with zero commissions.")
+                action = res.get("action", "continue")
+            else:
+                agent_resp = "We help local businesses get verified Top 3 Google Maps ranking and 1-tap WhatsApp booking with zero commissions. Would you like me to send a 1-page breakdown on WhatsApp?"
+                action = "continue"
         else:
-            agent_resp = "I did not catch that clearly. Could you please repeat?"
+            agent_resp = "I am listening. Could you please tell me how you currently handle customer inquiries?"
             action = "continue"
 
         # End call only on explicit opt out, reject, or when closing is reached after multi-turn discussion
-        is_final = (action in ["opt_out", "end_call"]) or (action == "complete_call" and turn_count >= 3)
+        is_final = (action in ["opt_out", "end_call"]) or (action == "complete_call" and turn_count >= 4)
 
         public_url = os.getenv("PUBLIC_WEBHOOK_URL", "").strip()
         if public_url and "ngrok-free.dev" not in public_url and "localhost" not in public_url:
@@ -672,7 +673,8 @@ def twilio_turn_webhook(request):
         if not host.startswith("http://") and not host.startswith("https://"):
             host = f"https://{host}"
 
-        sid_query = f"?session_id={session_id}" if session_id else ""
+        effective_sid = str(call_session.id) if call_session else (session_id or "")
+        sid_query = f"?session_id={effective_sid}" if effective_sid else ""
         next_turn_url = f"{host.rstrip('/')}/api/calls/twilio/turn{sid_query}"
 
         from providers.telephony.twilio_provider import TwilioProvider
@@ -686,9 +688,9 @@ def twilio_turn_webhook(request):
         print(f"[Twilio Turn Error] {e}")
         from providers.telephony.twilio_provider import TwilioProvider
         twiml = TwilioProvider().generate_twiml_response(
-            "Thank you for your time today. Our team will follow up shortly. Have a wonderful day.",
-            "",
-            is_final=True
+            "We help businesses capture 30 percent more customer inquiries through Google ranking and WhatsApp direct ordering. Can I send a quick preview to your WhatsApp?",
+            "https://automated-lead-agent.onrender.com/api/calls/twilio/turn",
+            is_final=False
         )
         return HttpResponse(twiml, content_type='text/xml; charset=utf-8')
 

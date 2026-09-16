@@ -60,16 +60,25 @@ urlpatterns = [
 
     # Outbound Voice & Calling Center
     path('calls', CallSessionAPIView.as_view(), name='calls_api'),
+    path('calls/', CallSessionAPIView.as_view()),
     path('calls/quick-call', quick_call_view, name='calls_quick_call'),
+    path('calls/quick-call/', quick_call_view),
     path('calls/<uuid:pk>/turn', process_interactive_turn, name='call_turn'),
+    path('calls/<uuid:pk>/turn/', process_interactive_turn),
     path('calls/<uuid:pk>/end', end_call_session, name='call_end'),
+    path('calls/<uuid:pk>/end/', end_call_session),
     path('calls/twilio/webhook', twilio_voice_webhook, name='twilio_voice_webhook'),
+    path('calls/twilio/webhook/', twilio_voice_webhook),
     path('calls/twilio/turn', twilio_turn_webhook, name='twilio_turn_webhook'),
+    path('calls/twilio/turn/', twilio_turn_webhook),
     path('calls/twilio/status', twilio_status_webhook, name='twilio_status_webhook'),
+    path('calls/twilio/status/', twilio_status_webhook),
 
     # Audit & Compliance
     path('audit', AuditEventAPIView.as_view(), name='audit_stream'),
+    path('audit/', AuditEventAPIView.as_view()),
 
     # System Settings & Kill Switch
     path('settings', SettingsAPIView.as_view(), name='system_settings'),
+    path('settings/', SettingsAPIView.as_view()),
 ]

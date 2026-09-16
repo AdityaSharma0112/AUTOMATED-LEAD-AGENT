@@ -156,13 +156,17 @@ class TwilioProvider(TelephonyProviderBase):
         )
 
         clean_url = (next_turn_url or "").strip()
+        if not clean_url or clean_url.lower() == "none":
+            clean_url = "https://automated-lead-agent.onrender.com/api/calls/twilio/turn"
+
+        if not clean_url.startswith("http://") and not clean_url.startswith("https://"):
+            clean_url = f"https://{clean_url}"
+
         # Escape ampersands in URL for XML compliance
         if "&" in clean_url:
             clean_url = clean_url.replace("&amp;", "&").replace("&", "&amp;")
 
-        has_valid_url = bool(clean_url and clean_url.lower() != "none" and (clean_url.startswith("http://") or clean_url.startswith("https://")))
-
-        if is_final or not has_valid_url:
+        if is_final:
             return f"""<?xml version="1.0" encoding="UTF-8"?>
 <Response>
     <Say voice="{voice}" language="en-IN">{escaped_text}</Say>
@@ -171,7 +175,7 @@ class TwilioProvider(TelephonyProviderBase):
 
         return f"""<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-    <Gather input="speech" action="{clean_url}" method="POST" speechTimeout="auto" timeout="6" language="en-IN">
+    <Gather input="speech" action="{clean_url}" method="POST" speechTimeout="auto" timeout="7" language="en-IN">
         <Say voice="{voice}" language="en-IN">{escaped_text}</Say>
     </Gather>
     <Gather input="speech" action="{clean_url}" method="POST" speechTimeout="auto" timeout="6" language="en-IN">
