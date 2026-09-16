@@ -545,7 +545,7 @@ async def place_outbound_call(request: Request):
     )
 
     session_id = f"direct_{to_phone[-6:] if len(to_phone) >= 6 else 'call'}"
-    http_host = host if not ("localhost" in host or "127.0.0.1" in host) else "octagonally-unexpectable-aryan.ngrok-free.dev"
+    http_host = host if not ("localhost" in host or "127.0.0.1" in host or "ngrok-free.dev" in host) else "automated-lead-agent.onrender.com"
     webhook_url = f"https://{http_host}/api/calls/twilio/webhook?session_id={session_id}"
 
     try:

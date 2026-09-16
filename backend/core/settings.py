@@ -135,6 +135,11 @@ CSRF_TRUSTED_ORIGINS = [
     'http://localhost:5173',
 ]
 
+# Reverse Proxy SSL header for Render / Cloud hosting
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+USE_X_FORWARDED_HOST = True
+USE_X_FORWARDED_PORT = True
+
 # Django REST Framework configuration
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [

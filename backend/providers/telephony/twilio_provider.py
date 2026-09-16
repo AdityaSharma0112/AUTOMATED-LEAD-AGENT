@@ -67,17 +67,21 @@ class TwilioProvider(TelephonyProviderBase):
             url = f"https://api.twilio.com/2010-04-01/Accounts/{self.account_sid}/Calls.json"
 
             effective_webhook = (webhook_base_url or os.getenv("PUBLIC_WEBHOOK_URL", "")).strip()
-            if not effective_webhook or "localhost" in effective_webhook or "127.0.0.1" in effective_webhook:
-                effective_webhook = "https://octagonally-unexpectable-aryan.ngrok-free.dev"
+            if not effective_webhook or "localhost" in effective_webhook or "127.0.0.1" in effective_webhook or "ngrok-free.dev" in effective_webhook:
+                effective_webhook = "https://automated-lead-agent.onrender.com"
 
+            if not effective_webhook.startswith("http://") and not effective_webhook.startswith("https://"):
+                effective_webhook = f"https://{effective_webhook}"
+
+            effective_webhook = effective_webhook.rstrip('/')
             sid_param = session_id or "direct_session"
-            twiml_url = f"{effective_webhook.rstrip('/')}/api/calls/twilio/webhook?session_id={sid_param}"
+            twiml_url = f"{effective_webhook}/api/calls/twilio/webhook?session_id={sid_param}"
 
             data = {
                 "To": clean_phone,
                 "From": self.from_number,
                 "Url": twiml_url,
-                "StatusCallback": f"{effective_webhook.rstrip('/')}/api/calls/twilio/status"
+                "StatusCallback": f"{effective_webhook}/api/calls/twilio/status"
             }
 
             res = requests.post(url, data=data, auth=(self.account_sid, self.auth_token), timeout=15)
