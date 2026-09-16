@@ -81,7 +81,7 @@ class GeminiProvider(LLMProviderBase):
 
         return [self.preferred_model] if self.preferred_model else ["gemini-3.6-flash"]
 
-    def _call_gemini_api(self, prompt: str) -> Optional[Dict[str, Any]]:
+    def _call_gemini_api(self, prompt: str, timeout_sec: int = 15) -> Optional[Dict[str, Any]]:
         """Call Google Gemini REST API with structured JSON response using discovered available models."""
         if not self.api_key:
             return None
@@ -121,7 +121,7 @@ class GeminiProvider(LLMProviderBase):
             }
 
             try:
-                res = requests.post(url, json=payload, timeout=20)
+                res = requests.post(url, json=payload, timeout=timeout_sec)
                 if res.status_code == 200:
                     data = res.json()
                     candidates = data.get("candidates", [])
@@ -364,7 +364,7 @@ Return a JSON object with:
 - "extracted_queries": List of objects with {{"query": str, "category": "Pricing & Commercials"|"Features & Workflow"|"Google Maps & SEO"|"Timeline"|"Technical", "answer_given": str, "priority": "High"|"Medium"|"Low"}} for any questions/requirements asked by the lead in this turn or earlier
 - "stage": "introduction" | "discovery" | "query_handling" | "pitch" | "closing"
 """
-        res = self._call_gemini_api(prompt)
+        res = self._call_gemini_api(prompt, timeout_sec=4)
         return res if (res and isinstance(res, dict) and "agent_response" in res) else self.fallback.generate_call_turn(
             lead_profile, history, user_speech, agent_persona, call_goal
         )

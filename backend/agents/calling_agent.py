@@ -294,17 +294,21 @@ class CallingAgent(BaseAgent):
             call_session.ended_at = timezone.now()
             call_session.save(update_fields=['status', 'ended_at'])
 
-            # Automatically trigger conversation intelligence extraction
-            try:
-                from .intelligence_agent import IntelligenceAgent
-                from .strategy_agent import StrategyAgent
-                from .lead_scorer import LeadScoringEngine
-                intel_agent = IntelligenceAgent()
-                intel_agent.extract_intelligence(call_session)
-                LeadScoringEngine().update_lead_score(lead)
-                StrategyAgent().generate_strategy(lead)
-            except Exception as e:
-                pass
+            # Automatically trigger conversation intelligence extraction in background thread
+            def _async_pipeline(session_obj, lead_obj):
+                try:
+                    from .intelligence_agent import IntelligenceAgent
+                    from .strategy_agent import StrategyAgent
+                    from .lead_scorer import LeadScoringEngine
+                    intel_agent = IntelligenceAgent()
+                    intel_agent.extract_intelligence(session_obj)
+                    LeadScoringEngine().update_lead_score(lead_obj)
+                    StrategyAgent().generate_strategy(lead_obj)
+                except Exception as ex:
+                    print(f"[Async Pipeline Error]: {ex}")
+
+            import threading
+            threading.Thread(target=_async_pipeline, args=(call_session, lead), daemon=True).start()
 
         # Save Agent Response Turn
         agent_resp = result.get("agent_response", "")
