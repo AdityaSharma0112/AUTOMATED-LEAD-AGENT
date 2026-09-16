@@ -180,7 +180,7 @@ export function exportCallRecord(lead: Lead, callSession: CallSession | null, ca
         .map((turn, i) => {
           const isAgent = turn.speaker === 'agent';
           const speaker = isAgent ? 'Priya (Digital Growth Hub)' : (lead.contact_person || lead.business_name || 'Client');
-          const time = turn.created_at ? ` [${new Date(turn.created_at).toLocaleTimeString()}]` : '';
+          const time = turn.timestamp ? ` [${turn.timestamp}]` : '';
           return `
             <div class="dialogue-turn ${isAgent ? 'dialogue-agent' : 'dialogue-client'}">
               <div class="speaker-name ${isAgent ? 'speaker-agent' : 'speaker-client'}">

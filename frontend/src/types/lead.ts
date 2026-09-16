@@ -53,6 +53,10 @@ export interface CallSession {
   ended_at: string | null;
   created_at: string;
   transcript_turns?: CallTranscriptTurn[];
+  outcome?: string;
+  sentiment?: string;
+  interest_level?: string;
+  summary?: string;
 }
 
 export interface ConversationIntelligence {
@@ -168,6 +172,20 @@ export interface Lead {
   latest_call?: { id: string; status: string; duration_seconds: number; call_type: string; created_at: string } | null;
   created_at: string;
   updated_at: string;
+  website?: string;
+  overall_score?: number;
+  pain_points?: string[];
+  seo_audit?: {
+    score?: number;
+    mobile_friendly?: boolean;
+    load_speed_seconds?: number;
+    has_ssl?: boolean;
+  };
+  social_footprint?: {
+    instagram_url?: string;
+    facebook_url?: string;
+    linkedin_url?: string;
+  };
 
   // Detail fields
   sources?: DiscoverySource[];
