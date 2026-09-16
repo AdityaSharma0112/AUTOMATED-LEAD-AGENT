@@ -17,7 +17,12 @@ class OverpassOSMProvider(ResearchProviderBase):
     """
 
     NOMINATIM_URL = "https://nominatim.openstreetmap.org/search"
-    OVERPASS_URL = "https://overpass-api.de/api/interpreter"
+    OVERPASS_ENDPOINTS = [
+        "https://overpass-api.de/api/interpreter",
+        "https://lz4.overpass-api.de/api/interpreter",
+        "https://overpass.kumi.systems/api/interpreter",
+        "https://overpass.private.coffee/api/interpreter",
+    ]
 
     CATEGORY_MAPPINGS = {
         "garage": ['["shop"="car_repair"]', '["amenity"="car_repair"]', '["shop"="car"]', '["craft"="mechanic"]', '["shop"="tyres"]', '["shop"="motorcycle"]'],
@@ -143,9 +148,9 @@ class OverpassOSMProvider(ResearchProviderBase):
 
         radius_meters = int(min(radius_km, 50.0) * 1000)
 
-        # Determine tags to query
-        cat_lower = (category or "").lower()
-        osm_filters = self.CATEGORY_MAPPINGS.get("general store", [])
+        # Build OSM tag filter
+        osm_filters = ['["shop"]', '["amenity"]', '["craft"]']
+        cat_lower = category.lower()
         for key, val in self.CATEGORY_MAPPINGS.items():
             if key in cat_lower:
                 osm_filters = val
@@ -157,7 +162,7 @@ class OverpassOSMProvider(ResearchProviderBase):
             query_parts.append(f'way{f}(around:{radius_meters},{lat},{lon});')
 
         overpass_query = f"""
-        [out:json][timeout:18];
+        [out:json][timeout:12];
         (
           {"".join(query_parts)}
         );
@@ -167,85 +172,89 @@ class OverpassOSMProvider(ResearchProviderBase):
         extracted_leads = []
         seen_names = set()
 
-        try:
-            headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
-            res = requests.post(self.OVERPASS_URL, data={"data": overpass_query}, headers=headers, timeout=14)
-            if res.status_code == 200:
-                data = res.json()
-                elements = data.get("elements", [])
+        for endpoint in self.OVERPASS_ENDPOINTS:
+            try:
+                headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+                res = requests.post(endpoint, data={"data": overpass_query}, headers=headers, timeout=8)
+                if res.status_code == 200:
+                    data = res.json()
+                    elements = data.get("elements", [])
 
-                for el in elements:
-                    tags = el.get("tags", {})
-                    raw_name = tags.get("name") or tags.get("name:en") or tags.get("operator") or tags.get("brand")
-                    if not raw_name:
-                        continue
+                    for el in elements:
+                        tags = el.get("tags", {})
+                        raw_name = tags.get("name") or tags.get("name:en") or tags.get("operator") or tags.get("brand")
+                        if not raw_name:
+                            continue
 
-                    # Clean and sanitize name: remove "Node:", numbers, "(11351331867)", "| OpenStreetMap"
-                    clean_name = re.sub(r'^(?:Node:\s*|\u202a|\u202c)', '', raw_name).strip()
-                    clean_name = re.sub(r'\s*\(\d+\)\s*', ' ', clean_name).strip()
-                    clean_name = re.sub(r'\s*\|\s*OpenStreetMap.*$', '', clean_name).strip()
+                        # Clean and sanitize name: remove "Node:", numbers, "(11351331867)", "| OpenStreetMap"
+                        clean_name = re.sub(r'^(?:Node:\s*|\u202a|\u202c)', '', raw_name).strip()
+                        clean_name = re.sub(r'\s*\(\d+\)\s*', ' ', clean_name).strip()
+                        clean_name = re.sub(r'\s*\|\s*OpenStreetMap.*$', '', clean_name).strip()
 
-                    if not clean_name or len(clean_name) < 3 or any(bad in clean_name.lower() for bad in ["node", "pharmacie du", "centre commercial"]):
-                        continue
+                        if not clean_name or len(clean_name) < 3 or any(bad in clean_name.lower() for bad in ["node", "pharmacie du", "centre commercial"]):
+                            continue
 
-                    clean_key = re.sub(r'\W+', '', clean_name.lower())
-                    if clean_key in seen_names:
-                        continue
-                    seen_names.add(clean_key)
+                        clean_key = re.sub(r'\W+', '', clean_name.lower())
+                        if clean_key in seen_names:
+                            continue
+                        seen_names.add(clean_key)
 
-                    # Extract coordinates
-                    el_lat = el.get("lat") or el.get("center", {}).get("lat", lat)
-                    el_lon = el.get("lon") or el.get("center", {}).get("lon", lon)
+                        # Extract coordinates
+                        el_lat = el.get("lat") or el.get("center", {}).get("lat", lat)
+                        el_lon = el.get("lon") or el.get("center", {}).get("lon", lon)
 
-                    # Extract address
-                    addr_parts = [
-                        tags.get("addr:housenumber", ""),
-                        tags.get("addr:street", ""),
-                        tags.get("addr:suburb", ""),
-                        tags.get("addr:city", location),
-                        tags.get("addr:state", "Himachal Pradesh"),
-                        tags.get("addr:postcode", "")
-                    ]
-                    address_str = ", ".join([p for p in addr_parts if p]).strip(" ,")
-                    if not address_str:
-                        address_str = f"{clean_name}, {location}, Himachal Pradesh"
-
-                    phone = tags.get("phone") or tags.get("contact:phone") or tags.get("contact:mobile") or ""
-                    website = tags.get("website") or tags.get("contact:website") or tags.get("url") or ""
-                    email = tags.get("email") or tags.get("contact:email") or ""
-                    hours = tags.get("opening_hours", "")
-
-                    # Direct Google Maps provenance link
-                    gmaps_url = f"https://www.google.com/maps/search/?api=1&query={urllib.parse.quote(clean_name + ' ' + location)}"
-
-                    extracted_leads.append({
-                        "business_name": clean_name,
-                        "category": category.title(),
-                        "phone": phone,
-                        "contact_person": tags.get("operator", ""),
-                        "email": email,
-                        "address": address_str,
-                        "locality": tags.get("addr:suburb") or tags.get("addr:district") or location,
-                        "city": location,
-                        "state": tags.get("addr:state") or "Himachal Pradesh",
-                        "country": "India",
-                        "latitude": float(el_lat) if el_lat else None,
-                        "longitude": float(el_lon) if el_lon else None,
-                        "rating": 4.3,
-                        "review_count": 22,
-                        "review_summary": f"Verified physical business in {location} on Google Maps.",
-                        "services": [category.title()],
-                        "hours": {"Operating Hours": hours} if hours else {"Status": "Open 9:00 AM - 9:00 PM"},
-                        "website_url": website,
-                        "sources": [
-                            {
-                                "source_name": "Google Maps & Local Directory",
-                                "source_url": gmaps_url,
-                                "raw_data": tags
-                            }
+                        # Extract address
+                        addr_parts = [
+                            tags.get("addr:housenumber", ""),
+                            tags.get("addr:street", ""),
+                            tags.get("addr:suburb", ""),
+                            tags.get("addr:city", location),
+                            tags.get("addr:state", "Himachal Pradesh"),
+                            tags.get("addr:postcode", "")
                         ]
-                    })
-        except Exception as e:
-            logger.error(f"Geocoded Overpass discovery error: {str(e)}")
+                        address_str = ", ".join([p for p in addr_parts if p]).strip(" ,")
+                        if not address_str:
+                            address_str = f"{clean_name}, {location}, Himachal Pradesh"
+
+                        phone = tags.get("phone") or tags.get("contact:phone") or tags.get("contact:mobile") or ""
+                        website = tags.get("website") or tags.get("contact:website") or tags.get("url") or ""
+                        email = tags.get("email") or tags.get("contact:email") or ""
+                        hours = tags.get("opening_hours", "")
+
+                        # Direct Google Maps provenance link
+                        gmaps_url = f"https://www.google.com/maps/search/?api=1&query={urllib.parse.quote(clean_name + ' ' + location)}"
+
+                        extracted_leads.append({
+                            "business_name": clean_name,
+                            "category": category.title(),
+                            "phone": phone,
+                            "contact_person": tags.get("operator", ""),
+                            "email": email,
+                            "address": address_str,
+                            "locality": tags.get("addr:suburb") or tags.get("addr:district") or location,
+                            "city": location,
+                            "state": tags.get("addr:state") or "Himachal Pradesh",
+                            "country": "India",
+                            "latitude": float(el_lat) if el_lat else None,
+                            "longitude": float(el_lon) if el_lon else None,
+                            "rating": 4.3,
+                            "review_count": 22,
+                            "review_summary": f"Verified physical business in {location} on Google Maps.",
+                            "services": [category.title()],
+                            "hours": {"Operating Hours": hours} if hours else {"Status": "Open 9:00 AM - 9:00 PM"},
+                            "website_url": website,
+                            "sources": [
+                                {
+                                    "source_name": "Google Maps & Local Directory",
+                                    "source_url": gmaps_url,
+                                    "raw_data": tags
+                                }
+                            ]
+                        })
+                    if extracted_leads:
+                        break
+            except Exception as e:
+                logger.warning(f"Overpass endpoint '{endpoint}' failed: {str(e)}")
+                continue
 
         return extracted_leads
