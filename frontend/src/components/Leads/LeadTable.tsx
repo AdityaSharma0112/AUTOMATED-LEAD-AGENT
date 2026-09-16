@@ -239,11 +239,11 @@ export const LeadTable: React.FC<LeadTableProps> = ({
           <span className="badge badge-info" style={{ fontSize: '0.68rem', fontWeight: 700 }}>
             Call #{totalCalls} {totalCalls > 1 ? '(Repeat)' : ''}
           </span>
-          {interest === 'interested_hot' || interest === 'hot' ? (
+          {String(interest || '') === 'interested_hot' || String(interest || '') === 'hot' ? (
             <span className="badge badge-success" style={{ fontSize: '0.65rem' }}>🟢 Hot</span>
-          ) : interest === 'interested_warm' || interest === 'warm' ? (
+          ) : String(interest || '') === 'interested_warm' || String(interest || '') === 'warm' ? (
             <span className="badge badge-warning" style={{ fontSize: '0.65rem' }}>🟡 Warm</span>
-          ) : interest === 'call_back' ? (
+          ) : String(interest || '') === 'call_back' ? (
             <span className="badge badge-info" style={{ fontSize: '0.65rem' }}>🔵 Follow-up</span>
           ) : (
             <span className="badge badge-secondary" style={{ fontSize: '0.65rem' }}>⚪ Qualified</span>

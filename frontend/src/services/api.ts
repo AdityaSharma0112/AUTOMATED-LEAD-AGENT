@@ -1,6 +1,6 @@
 import { Lead, SearchJob, CallSession, Strategy, ConversationIntelligence, AuditEvent, SystemSettings, AuthResponse, AuthUser } from '../types/lead';
 
-const BACKEND_BASE = (import.meta.env.VITE_BACKEND_URL || '').replace(/\/$/, '');
+const BACKEND_BASE = ((import.meta as any).env?.VITE_BACKEND_URL || '').replace(/\/$/, '');
 const API_BASE = BACKEND_BASE ? `${BACKEND_BASE}/api` : '/api';
 
 let authToken: string | null = localStorage.getItem('auth_token');
