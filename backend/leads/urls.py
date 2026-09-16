@@ -24,10 +24,14 @@ from .views import (
     SettingsAPIView,
     export_leads_csv,
     clear_all_leads,
-    places_autocomplete
+    places_autocomplete,
+    health_check
 )
 
 urlpatterns = [
+    # Health check (for Render / Railway keep-alive pingers)
+    path('health', health_check, name='health_check'),
+
     # Authentication (Email + OTP Login & Signup)
     path('auth/send-otp', SendOTPAPIView.as_view(), name='auth_send_otp'),
     path('auth/verify-otp', VerifyOTPAPIView.as_view(), name='auth_verify_otp'),

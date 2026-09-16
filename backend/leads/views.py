@@ -1052,3 +1052,17 @@ def places_autocomplete(request):
         "related_places": related_places
     })
 
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def health_check(request):
+    """
+    Lightweight health check endpoint for Render/Railway keep-alive pingers (e.g. UptimeRobot).
+    """
+    return Response({
+        "status": "healthy",
+        "service": "automated-lead-agent",
+        "timestamp": timezone.now().isoformat()
+    })
+
+
