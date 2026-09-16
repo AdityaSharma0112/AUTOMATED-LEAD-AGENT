@@ -157,9 +157,14 @@ _email_user = os.getenv('EMAIL_HOST_USER', '').strip()
 _default_backend = 'django.core.mail.backends.smtp.EmailBackend' if _email_user else 'django.core.mail.backends.console.EmailBackend'
 EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', _default_backend)
 EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
-EMAIL_PORT = int(os.getenv('EMAIL_PORT', 587))
-EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True') == 'True'
-EMAIL_USE_SSL = os.getenv('EMAIL_USE_SSL', 'False') == 'True'
+_port_str = os.getenv('EMAIL_PORT', '465').strip()
+EMAIL_PORT = int(_port_str) if _port_str.isdigit() else 465
+if EMAIL_PORT == 465:
+    EMAIL_USE_SSL = True
+    EMAIL_USE_TLS = False
+else:
+    EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True') == 'True'
+    EMAIL_USE_SSL = os.getenv('EMAIL_USE_SSL', 'False') == 'True'
 EMAIL_HOST_USER = _email_user
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '').replace(' ', '').strip()
 EMAIL_TIMEOUT = int(os.getenv('EMAIL_TIMEOUT', 10))

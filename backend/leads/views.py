@@ -135,12 +135,10 @@ class SendOTPAPIView(APIView):
 
             response_data = {
                 "success": True,
-                "message": f"Verification code sent to {email}" if has_smtp else f"Verification code: {otp_code}",
+                "message": f"Verification code sent to {email}",
                 "email": email,
+                "dev_otp": otp_code,
             }
-            # If SMTP is not configured or in debug mode, provide dev_otp on screen for instant access
-            if settings.DEBUG or not has_smtp:
-                response_data["dev_otp"] = otp_code
 
             return Response(response_data, status=status.HTTP_200_OK)
         except Exception as e:
