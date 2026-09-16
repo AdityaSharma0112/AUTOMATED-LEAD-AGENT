@@ -145,6 +145,7 @@ class TwilioProvider(TelephonyProviderBase):
     ) -> str:
         """
         Generate compliant TwiML XML with Amazon Polly neural voice and Speech Gathering.
+        Places speech inside Gather for seamless barge-in, multi-turn listening, and silence retry.
         """
         escaped_text = (
             agent_speech.replace("&", "&amp;")
@@ -155,6 +156,10 @@ class TwilioProvider(TelephonyProviderBase):
         )
 
         clean_url = (next_turn_url or "").strip()
+        # Escape ampersands in URL for XML compliance
+        if "&" in clean_url:
+            clean_url = clean_url.replace("&amp;", "&").replace("&", "&amp;")
+
         has_valid_url = bool(clean_url and clean_url.lower() != "none" and (clean_url.startswith("http://") or clean_url.startswith("https://")))
 
         if is_final or not has_valid_url:
@@ -166,11 +171,13 @@ class TwilioProvider(TelephonyProviderBase):
 
         return f"""<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-    <Say voice="{voice}" language="en-IN">{escaped_text}</Say>
-    <Gather input="speech" action="{clean_url}" method="POST" speechTimeout="auto" timeout="4" language="en-IN">
-        <Say voice="{voice}" language="en-IN">Please go ahead, I am listening.</Say>
+    <Gather input="speech" action="{clean_url}" method="POST" speechTimeout="auto" timeout="6" language="en-IN">
+        <Say voice="{voice}" language="en-IN">{escaped_text}</Say>
     </Gather>
-    <Say voice="{voice}" language="en-IN">Thank you for your time. Have a great day.</Say>
+    <Gather input="speech" action="{clean_url}" method="POST" speechTimeout="auto" timeout="6" language="en-IN">
+        <Say voice="{voice}" language="en-IN">Are you still there? Could you please repeat that?</Say>
+    </Gather>
+    <Say voice="{voice}" language="en-IN">Thank you for your time. Have a wonderful day.</Say>
     <Hangup/>
 </Response>"""
 

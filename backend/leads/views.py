@@ -647,6 +647,7 @@ def twilio_turn_webhook(request):
             return HttpResponse(twiml, content_type='text/xml; charset=utf-8')
 
         calling_agent = CallingAgent()
+        turn_count = call_session.transcript_turns.count()
         if speech_result:
             res = calling_agent.process_turn(call_session, speech_result)
             agent_resp = res.get("agent_response", "I understand. How else can we assist your business?")
@@ -655,7 +656,8 @@ def twilio_turn_webhook(request):
             agent_resp = "I did not catch that clearly. Could you please repeat?"
             action = "continue"
 
-        is_final = action in ["complete_call", "opt_out", "end_call"]
+        # End call only on explicit opt out, reject, or when closing is reached after multi-turn discussion
+        is_final = (action in ["opt_out", "end_call"]) or (action == "complete_call" and turn_count >= 3)
 
         public_url = os.getenv("PUBLIC_WEBHOOK_URL", "").strip()
         if public_url and "ngrok-free.dev" not in public_url and "localhost" not in public_url:
