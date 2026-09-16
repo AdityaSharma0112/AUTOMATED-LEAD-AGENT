@@ -25,12 +25,14 @@ from .views import (
     export_leads_csv,
     clear_all_leads,
     places_autocomplete,
-    health_check
+    health_check,
+    test_email_diagnostics
 )
 
 urlpatterns = [
     # Health check (for Render / Railway keep-alive pingers)
     path('health', health_check, name='health_check'),
+    path('auth/test-email', test_email_diagnostics, name='test_email_diagnostics'),
 
     # Authentication (Email + OTP Login & Signup)
     path('auth/send-otp', SendOTPAPIView.as_view(), name='auth_send_otp'),

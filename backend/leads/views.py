@@ -123,7 +123,7 @@ class SendOTPAPIView(APIView):
                             message=message,
                             from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@digitalgrowthhub.ai'),
                             recipient_list=[email],
-                            fail_silently=True
+                            fail_silently=False
                         )
                         logger.info(f"Successfully sent OTP email to {email}")
                     except Exception as e:
@@ -1076,5 +1076,56 @@ def health_check(request):
         "service": "automated-lead-agent",
         "timestamp": timezone.now().isoformat()
     })
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def test_email_diagnostics(request):
+    """
+    Direct SMTP diagnostic endpoint: Test and debug email delivery in 1 click.
+    """
+    target = request.GET.get('to', getattr(settings, 'EMAIL_HOST_USER', '')).strip()
+    pw = getattr(settings, 'EMAIL_HOST_PASSWORD', '')
+    debug_info = {
+        "EMAIL_HOST": getattr(settings, 'EMAIL_HOST', ''),
+        "EMAIL_PORT": getattr(settings, 'EMAIL_PORT', ''),
+        "EMAIL_USE_TLS": getattr(settings, 'EMAIL_USE_TLS', ''),
+        "EMAIL_USE_SSL": getattr(settings, 'EMAIL_USE_SSL', ''),
+        "EMAIL_HOST_USER": getattr(settings, 'EMAIL_HOST_USER', ''),
+        "EMAIL_HOST_PASSWORD_SET": bool(pw),
+        "EMAIL_HOST_PASSWORD_LENGTH": len(pw),
+        "EMAIL_HOST_PASSWORD_HAS_SPACES": ' ' in pw,
+        "DEFAULT_FROM_EMAIL": getattr(settings, 'DEFAULT_FROM_EMAIL', ''),
+    }
+
+    if not target:
+        return Response({
+            "error": "No recipient specified. Add ?to=your_email@gmail.com to test.",
+            "config": debug_info
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        sent = send_mail(
+            subject="[TEST] Automated Lead Agent SMTP Test",
+            message="If you receive this email, your Gmail SMTP configuration on Render is 100% working!",
+            from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@digitalgrowthhub.ai'),
+            recipient_list=[target],
+            fail_silently=False
+        )
+        return Response({
+            "success": True,
+            "emails_sent_count": sent,
+            "message": f"Test email successfully dispatched to {target}!",
+            "config": debug_info
+        }, status=status.HTTP_200_OK)
+    except Exception as e:
+        logger.exception("Diagnostic email failure")
+        return Response({
+            "success": False,
+            "error_type": type(e).__name__,
+            "error_message": str(e),
+            "config": debug_info
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 
