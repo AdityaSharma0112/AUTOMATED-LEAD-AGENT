@@ -170,17 +170,18 @@ export function exportCallRecord(lead: Lead, callSession: CallSession | null, ca
       alert('No lead selected to export call record.');
       return;
     }
-    const dateStr = callSession?.created_at ? new Date(callSession.created_at).toLocaleString() : new Date().toLocaleString();
-    const durationStr = callSession?.duration_seconds ? `${Math.floor(callSession.duration_seconds / 60)}m ${callSession.duration_seconds % 60}s` : '0s';
+    const sess: any = callSession;
+    const dateStr = sess?.created_at ? new Date(sess.created_at).toLocaleString() : new Date().toLocaleString();
+    const durationStr = sess?.duration_seconds ? `${Math.floor(sess.duration_seconds / 60)}m ${sess.duration_seconds % 60}s` : '0s';
     const isRepeatCall = callIndex > 1;
 
     let turnsHtml = '';
-    if (callSession?.transcript_turns && Array.isArray(callSession.transcript_turns) && callSession.transcript_turns.length > 0) {
-      turnsHtml = callSession.transcript_turns
-        .map((turn, i) => {
+    if (sess?.transcript_turns && Array.isArray(sess.transcript_turns) && sess.transcript_turns.length > 0) {
+      turnsHtml = sess.transcript_turns
+        .map((turn: any, i: number) => {
           const isAgent = turn.speaker === 'agent';
           const speaker = isAgent ? 'Priya (Digital Growth Hub)' : (lead.contact_person || lead.business_name || 'Client');
-          const time = turn.timestamp ? ` [${turn.timestamp}]` : '';
+          const time = turn.timestamp ? ` [${turn.timestamp}]` : (turn.created_at ? ` [${new Date(turn.created_at).toLocaleTimeString()}]` : '');
           return `
             <div class="dialogue-turn ${isAgent ? 'dialogue-agent' : 'dialogue-client'}">
               <div class="speaker-name ${isAgent ? 'speaker-agent' : 'speaker-client'}">
@@ -206,17 +207,17 @@ export function exportCallRecord(lead: Lead, callSession: CallSession | null, ca
         <tr><th>Call Type</th><td>Call #${callIndex} ${isRepeatCall ? '<span class="badge badge-warning">Repeat / Follow-up Call</span>' : '<span class="badge">Initial Outreach</span>'}</td></tr>
         <tr><th>Call Date & Time</th><td>${dateStr}</td></tr>
         <tr><th>Call Duration</th><td>${durationStr}</td></tr>
-        <tr><th>Call Status</th><td><strong>${(callSession?.status || 'COMPLETED').toUpperCase()}</strong></td></tr>
-        <tr><th>Outcome</th><td>${callSession?.outcome ? String(callSession.outcome).toUpperCase() : 'N/A'}</td></tr>
-        <tr><th>Customer Sentiment</th><td>${callSession?.sentiment || 'N/A'}</td></tr>
-        <tr><th>Interest Level</th><td>${callSession?.interest_level || lead.interest_status || 'N/A'}</td></tr>
+        <tr><th>Call Status</th><td><strong>${(sess?.status || 'COMPLETED').toUpperCase()}</strong></td></tr>
+        <tr><th>Outcome</th><td>${sess?.outcome ? String(sess.outcome).toUpperCase() : 'N/A'}</td></tr>
+        <tr><th>Customer Sentiment</th><td>${sess?.sentiment || 'N/A'}</td></tr>
+        <tr><th>Interest Level</th><td>${sess?.interest_level || lead.interest_status || 'N/A'}</td></tr>
         <tr><th>Do Not Call (DNC)</th><td>${lead.opted_out ? '<span class="badge badge-danger">YES - Client Opted Out</span>' : '<span class="badge badge-success">NO - Active</span>'}</td></tr>
         <tr><th>Next Scheduled Follow-up</th><td><strong>${lead.follow_up_date || lead.strategy?.follow_up_date || 'Not Scheduled'}</strong></td></tr>
       </table>
 
       <h2>2. Call Summary & Recommended Next Action</h2>
       <div class="card">
-        <p><strong>Summary:</strong> ${callSession?.summary ? callSession.summary : 'Call concluded normally.'}</p>
+        <p><strong>Summary:</strong> ${sess?.summary ? sess.summary : 'Call concluded normally.'}</p>
         <p><strong>Recommended Next Move:</strong> ${lead.strategy?.next_action || 'Review conversation insights and arrange follow-up.'}</p>
       </div>
 
@@ -242,7 +243,8 @@ export function exportStrategyProposal(lead: Lead, strategy?: Strategy | null) {
       alert('No lead selected to export strategy.');
       return;
     }
-    const strat = strategy || lead.strategy;
+    const l: any = lead;
+    const strat = strategy || l.strategy;
     const dateStr = new Date().toLocaleDateString();
 
     let packagesHtml = '';
@@ -302,17 +304,17 @@ export function exportStrategyProposal(lead: Lead, strategy?: Strategy | null) {
     const htmlBody = `
       <h1>SALES STRATEGY & PROPOSAL DOSSIER</h1>
       <p style="font-size: 12pt; color: #475569; margin-top: -10px;">
-        <strong>Client:</strong> ${lead.business_name || 'Valued Business'} &bull; <strong>Prepared By:</strong> Priya (Digital Growth Hub) &bull; <strong>Date:</strong> ${dateStr}
+        <strong>Client:</strong> ${l.business_name || 'Valued Business'} &bull; <strong>Prepared By:</strong> Priya (Digital Growth Hub) &bull; <strong>Date:</strong> ${dateStr}
       </p>
 
       <h2>1. Executive Summary & Target Profile</h2>
       <table>
-        <tr><th>Business Name</th><td>${lead.business_name || 'N/A'}</td></tr>
-        <tr><th>Industry / Niche</th><td>${lead.category || 'General Business'}</td></tr>
-        <tr><th>Location</th><td>${lead.address || (lead.locality ? `${lead.locality}, ${lead.city}` : lead.city) || 'N/A'}</td></tr>
-        <tr><th>Website Presence</th><td>${lead.website || lead.website_url || 'Likely Absent / Under-optimized'}</td></tr>
-        <tr><th>Phone Contact</th><td>${lead.phone || 'N/A'}</td></tr>
-        <tr><th>Key Pain Points</th><td>${lead.pain_points && Array.isArray(lead.pain_points) && lead.pain_points.length > 0 ? lead.pain_points.join('<br>&bull; ') : 'Under-optimized online visibility, missing local digital capture'}</td></tr>
+        <tr><th>Business Name</th><td>${l.business_name || 'N/A'}</td></tr>
+        <tr><th>Industry / Niche</th><td>${l.category || 'General Business'}</td></tr>
+        <tr><th>Location</th><td>${l.address || (l.locality ? `${l.locality}, ${l.city}` : l.city) || 'N/A'}</td></tr>
+        <tr><th>Website Presence</th><td>${l.website || l.website_url || 'Likely Absent / Under-optimized'}</td></tr>
+        <tr><th>Phone Contact</th><td>${l.phone || 'N/A'}</td></tr>
+        <tr><th>Key Pain Points</th><td>${l.pain_points && Array.isArray(l.pain_points) && l.pain_points.length > 0 ? l.pain_points.join('<br>&bull; ') : 'Under-optimized online visibility, missing local digital capture'}</td></tr>
       </table>
 
       <h2>2. Problem Statement & Growth Opportunity</h2>
@@ -324,7 +326,7 @@ export function exportStrategyProposal(lead: Lead, strategy?: Strategy | null) {
 
       <h2>3. Custom Sales Pitch Script (Priya's Playbook)</h2>
       <div class="pitch-quote">
-        "${strat?.pitch_script || lead.intelligence?.next_sales_pitch_hook || `Hello ${lead.contact_person || 'there'}, Priya here from Digital Growth Hub. We noticed your business ${lead.business_name || 'here'} has great potential and we'd love to help automate your customer booking and digital visibility!`}"
+        "${strat?.pitch_script || l.intelligence?.next_sales_pitch_hook || `Hello ${l.contact_person || 'there'}, Priya here from Digital Growth Hub. We noticed your business ${l.business_name || 'here'} has great potential and we'd love to help automate your customer booking and digital visibility!`}"
       </div>
 
       <h2>4. Tailored Offer Packages & Proposals</h2>
@@ -336,14 +338,14 @@ export function exportStrategyProposal(lead: Lead, strategy?: Strategy | null) {
       <h2>6. Recommended Next Move & Timeline</h2>
       <table>
         <tr><th>Recommended Next Move</th><td><strong>${strat?.next_action || 'Schedule discovery consultation call.'}</strong></td></tr>
-        <tr><th>Scheduled Follow-up</th><td>${strat?.follow_up_date || lead.follow_up_date || 'Within 24-48 Hours'}</td></tr>
-        <tr><th>Client Status</th><td>${lead.opted_out ? '<span class="badge badge-danger">DO NOT CALL (Opted Out)</span>' : '<span class="badge badge-success">ACTIVE PIPELINE</span>'}</td></tr>
+        <tr><th>Scheduled Follow-up</th><td>${strat?.follow_up_date || l.follow_up_date || 'Within 24-48 Hours'}</td></tr>
+        <tr><th>Client Status</th><td>${l.opted_out ? '<span class="badge badge-danger">DO NOT CALL (Opted Out)</span>' : '<span class="badge badge-success">ACTIVE PIPELINE</span>'}</td></tr>
       </table>
     `;
 
-    const safeName = (lead.business_name || 'lead').replace(/[^a-z0-9_-]/gi, '_');
+    const safeName = (l.business_name || 'lead').replace(/[^a-z0-9_-]/gi, '_');
     const filename = `Strategy_Proposal_${safeName}.doc`;
-    downloadWordDocument(htmlBody, filename, `Strategy Proposal - ${lead.business_name}`);
+    downloadWordDocument(htmlBody, filename, `Strategy Proposal - ${l.business_name}`);
   } catch (err: any) {
     console.error('Failed to export strategy proposal:', err);
     alert(`Failed to export strategy proposal: ${err.message}`);
@@ -359,13 +361,14 @@ export function exportCompleteLeadDossier(lead: Lead) {
       alert('No lead selected to export dossier.');
       return;
     }
-    const callsCount = lead.calls ? lead.calls.length : (lead.calls_count || 0);
+    const l: any = lead;
+    const callsCount = l.calls ? l.calls.length : (l.calls_count || 0);
     const dateStr = new Date().toLocaleString();
 
     let callsHtml = '';
-    if (lead.calls && Array.isArray(lead.calls) && lead.calls.length > 0) {
-      callsHtml = lead.calls
-        .map((c, idx) => {
+    if (l.calls && Array.isArray(l.calls) && l.calls.length > 0) {
+      callsHtml = l.calls
+        .map((c: any, idx: number) => {
           const callNum = idx + 1;
           const duration = c.duration_seconds ? `${Math.floor(c.duration_seconds / 60)}m ${c.duration_seconds % 60}s` : '0s';
           const callDate = c.created_at ? new Date(c.created_at).toLocaleString() : 'Recent';
@@ -373,9 +376,9 @@ export function exportCompleteLeadDossier(lead: Lead) {
           let turns = '';
           if (c.transcript_turns && Array.isArray(c.transcript_turns) && c.transcript_turns.length > 0) {
             turns = c.transcript_turns
-              .map(t => {
+              .map((t: any) => {
                 const isAgent = t.speaker === 'agent';
-                const spk = isAgent ? 'Priya (AI Consultant)' : `${lead.business_name || 'Client'}`;
+                const spk = isAgent ? 'Priya (AI Consultant)' : `${l.business_name || 'Client'}`;
                 return `<div class="dialogue-turn ${isAgent ? 'dialogue-agent' : 'dialogue-client'}"><strong>${spk}:</strong> "${t.text}"</div>`;
               })
               .join('');
@@ -401,40 +404,40 @@ export function exportCompleteLeadDossier(lead: Lead) {
     const htmlBody = `
       <h1>COMPLETE 360&deg; LEAD INTELLIGENCE DOSSIER</h1>
       <p style="font-size: 12pt; color: #475569; margin-top: -10px;">
-        <strong>Business:</strong> ${lead.business_name || 'Lead'} &bull; <strong>Export Date:</strong> ${dateStr} &bull; <strong>System:</strong> [AUTOMATED-LEAD-AGENT]
+        <strong>Business:</strong> ${l.business_name || 'Lead'} &bull; <strong>Export Date:</strong> ${dateStr} &bull; <strong>System:</strong> [AUTOMATED-LEAD-AGENT]
       </p>
 
       <h2>1. Verified Lead Profile & Contact Data</h2>
       <table>
-        <tr><th>Business Name</th><td><strong>${lead.business_name || 'N/A'}</strong></td></tr>
-        <tr><th>Category / Niche</th><td>${lead.category || 'N/A'}</td></tr>
-        <tr><th>Direct Phone</th><td>${lead.phone || 'N/A'}</td></tr>
-        <tr><th>Email</th><td>${lead.email || 'N/A'}</td></tr>
-        <tr><th>Website</th><td>${lead.website || lead.website_url || 'N/A'}</td></tr>
-        <tr><th>Address / Locality</th><td>${lead.address || (lead.locality ? `${lead.locality}, ${lead.city}` : lead.city) || 'N/A'}</td></tr>
-        <tr><th>Lead Score</th><td><strong>${lead.lead_score || lead.overall_score || 0}/100</strong></td></tr>
-        <tr><th>Pipeline Status</th><td>${lead.opted_out ? '<span class="badge badge-danger">DO NOT CALL (Opted Out)</span>' : '<span class="badge badge-success">ACTIVE PIPELINE</span>'}</td></tr>
+        <tr><th>Business Name</th><td><strong>${l.business_name || 'N/A'}</strong></td></tr>
+        <tr><th>Category / Niche</th><td>${l.category || 'N/A'}</td></tr>
+        <tr><th>Direct Phone</th><td>${l.phone || 'N/A'}</td></tr>
+        <tr><th>Email</th><td>${l.email || 'N/A'}</td></tr>
+        <tr><th>Website</th><td>${l.website || l.website_url || 'N/A'}</td></tr>
+        <tr><th>Address / Locality</th><td>${l.address || (l.locality ? `${l.locality}, ${l.city}` : l.city) || 'N/A'}</td></tr>
+        <tr><th>Lead Score</th><td><strong>${l.lead_score || l.overall_score || 0}/100</strong></td></tr>
+        <tr><th>Pipeline Status</th><td>${l.opted_out ? '<span class="badge badge-danger">DO NOT CALL (Opted Out)</span>' : '<span class="badge badge-success">ACTIVE PIPELINE</span>'}</td></tr>
         <tr><th>Total Calls Held</th><td>${callsCount} Call${callsCount === 1 ? '' : 's'}</td></tr>
-        <tr><th>Next Follow-up</th><td><strong>${lead.follow_up_date || lead.strategy?.follow_up_date || 'Not scheduled'}</strong></td></tr>
+        <tr><th>Next Follow-up</th><td><strong>${l.follow_up_date || l.strategy?.follow_up_date || 'Not scheduled'}</strong></td></tr>
       </table>
 
       <h2>2. Digital Audit & Verification Intelligence</h2>
       <table>
-        <tr><th>Google Rating</th><td>${lead.rating ? `${lead.rating} ★ (${lead.review_count || 0} reviews)` : 'N/A'}</td></tr>
-        <tr><th>SEO Score</th><td>${lead.seo_audit?.score ?? 'N/A'}/100</td></tr>
-        <tr><th>Mobile Friendly</th><td>${lead.seo_audit?.mobile_friendly ? 'Yes' : 'No'}</td></tr>
-        <tr><th>Load Speed</th><td>${lead.seo_audit?.load_speed_seconds ? `${lead.seo_audit.load_speed_seconds}s` : 'N/A'}</td></tr>
-        <tr><th>SSL Security</th><td>${lead.seo_audit?.has_ssl ? 'Secure (HTTPS)' : 'Insecure / Missing SSL'}</td></tr>
-        <tr><th>Social Footprint</th><td>Instagram: ${lead.social_footprint?.instagram_url || 'N/A'}<br>Facebook: ${lead.social_footprint?.facebook_url || 'N/A'}<br>LinkedIn: ${lead.social_footprint?.linkedin_url || 'N/A'}</td></tr>
+        <tr><th>Google Rating</th><td>${l.rating ? `${l.rating} ★ (${l.review_count || 0} reviews)` : 'N/A'}</td></tr>
+        <tr><th>SEO Score</th><td>${l.seo_audit?.score ?? 'N/A'}/100</td></tr>
+        <tr><th>Mobile Friendly</th><td>${l.seo_audit?.mobile_friendly ? 'Yes' : 'No'}</td></tr>
+        <tr><th>Load Speed</th><td>${l.seo_audit?.load_speed_seconds ? `${l.seo_audit.load_speed_seconds}s` : 'N/A'}</td></tr>
+        <tr><th>SSL Security</th><td>${l.seo_audit?.has_ssl ? 'Secure (HTTPS)' : 'Insecure / Missing SSL'}</td></tr>
+        <tr><th>Social Footprint</th><td>Instagram: ${l.social_footprint?.instagram_url || 'N/A'}<br>Facebook: ${l.social_footprint?.facebook_url || 'N/A'}<br>LinkedIn: ${l.social_footprint?.linkedin_url || 'N/A'}</td></tr>
       </table>
 
       <h2>3. Sales Strategy & Recommended Next Move</h2>
       <div class="card">
-        <p><strong>Next Action:</strong> <strong>${lead.strategy?.next_action || 'Follow up with tailored proposal.'}</strong></p>
-        <p><strong>Follow-up Timeline:</strong> ${lead.strategy?.follow_up_date || lead.follow_up_date || 'Within 24-48 Hours'}</p>
+        <p><strong>Next Action:</strong> <strong>${l.strategy?.next_action || 'Follow up with tailored proposal.'}</strong></p>
+        <p><strong>Follow-up Timeline:</strong> ${l.strategy?.follow_up_date || l.follow_up_date || 'Within 24-48 Hours'}</p>
         <p><strong>Priya's Sales Pitch:</strong></p>
         <div class="pitch-quote">
-          "${lead.strategy?.pitch_script || lead.intelligence?.next_sales_pitch_hook || 'Standard Consultative Pitch'}"
+          "${l.strategy?.pitch_script || l.intelligence?.next_sales_pitch_hook || 'Standard Consultative Pitch'}"
         </div>
       </div>
 
@@ -442,9 +445,9 @@ export function exportCompleteLeadDossier(lead: Lead) {
       ${callsHtml}
     `;
 
-    const safeName = (lead.business_name || 'lead').replace(/[^a-z0-9_-]/gi, '_');
+    const safeName = (l.business_name || 'lead').replace(/[^a-z0-9_-]/gi, '_');
     const filename = `Lead_Dossier_${safeName}.doc`;
-    downloadWordDocument(htmlBody, filename, `Lead Dossier - ${lead.business_name}`);
+    downloadWordDocument(htmlBody, filename, `Lead Dossier - ${l.business_name}`);
   } catch (err: any) {
     console.error('Failed to export dossier:', err);
     alert(`Failed to export dossier: ${err.message}`);
