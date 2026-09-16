@@ -3,6 +3,8 @@ Django>=5.0,<6.0
 djangorestframework>=3.15.0
 django-cors-headers>=4.3.1
 psycopg2-binary>=2.9.9
+gunicorn>=21.2.0
+whitenoise>=6.6.0
 
 # Realtime Voice Streaming & WebSockets
 fastapi>=0.115.0
