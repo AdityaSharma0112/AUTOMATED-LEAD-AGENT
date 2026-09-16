@@ -3,6 +3,7 @@ import re
 import secrets
 import datetime
 from io import StringIO
+import uuid as uuid_lib
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django.db.models import Q
@@ -10,6 +11,8 @@ from django.utils import timezone
 from django.conf import settings
 from django.core.mail import send_mail
 from django.contrib.auth.models import User
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -552,122 +555,163 @@ def end_call_session(request, pk):
     return Response(serializer.data)
 
 
-@api_view(['GET', 'POST'])
-@permission_classes([AllowAny])
+def get_call_session_safe(session_id):
+    """Safely fetch CallSession by UUID, preventing database ValidationError crashes."""
+    if not session_id:
+        return None
+    try:
+        if isinstance(session_id, uuid_lib.UUID):
+            return CallSession.objects.filter(pk=session_id).first()
+        # Validate format
+        cleaned_id = str(session_id).strip()
+        parsed_uuid = uuid_lib.UUID(cleaned_id)
+        return CallSession.objects.filter(pk=parsed_uuid).first()
+    except Exception:
+        return None
+
+
+@csrf_exempt
+@require_http_methods(["GET", "POST"])
 def twilio_voice_webhook(request):
     """
     Twilio Outbound Call Greeting Webhook: Returns initial TwiML greeting with Amazon Polly voice.
+    Fault-tolerant: always returns valid XML even if parameters are missing or invalid.
     """
-    session_id = request.GET.get("session_id") or request.POST.get("session_id")
-    call_session = CallSession.objects.filter(pk=session_id).first() if session_id else None
+    try:
+        session_id = request.GET.get("session_id") or request.POST.get("session_id")
+        call_session = get_call_session_safe(session_id)
 
-    lead = call_session.lead if call_session else None
-    business_name = lead.business_name if lead else (call_session.custom_business_name if call_session else "your business")
-    contact_person = lead.contact_person if (lead and lead.contact_person) else "there"
-    city = lead.city if (lead and lead.city) else "Solan"
+        lead = call_session.lead if call_session else None
+        business_name = lead.business_name if lead else (call_session.custom_business_name if call_session else "your business")
+        contact_person = lead.contact_person if (lead and lead.contact_person) else "there"
+        city = lead.city if (lead and lead.city) else "Solan"
 
-    opening_text = (
-        f"Hello {contact_person}! This is Priya calling from Digital Growth Hub regarding {business_name} in {city}. "
-        f"Am I speaking with the owner or manager?"
-    )
+        opening_text = (
+            f"Hello {contact_person}! This is Priya calling from Digital Growth Hub regarding {business_name} in {city}. "
+            f"Am I speaking with the owner or manager?"
+        )
 
-    public_url = os.getenv("PUBLIC_WEBHOOK_URL", "").strip()
-    if public_url and "ngrok-free.dev" not in public_url and "localhost" not in public_url:
-        host = public_url.rstrip('/')
-    else:
-        host = request.build_absolute_uri('/').rstrip('/')
-        if host.startswith("http://") and "localhost" not in host and "127.0.0.1" not in host:
-            host = host.replace("http://", "https://", 1)
-        if not host or "localhost" in host or "127.0.0.1" in host or "ngrok-free.dev" in host:
-            host = "https://automated-lead-agent.onrender.com"
+        public_url = os.getenv("PUBLIC_WEBHOOK_URL", "").strip()
+        if public_url and "ngrok-free.dev" not in public_url and "localhost" not in public_url:
+            host = public_url.rstrip('/')
+        else:
+            host = request.build_absolute_uri('/').rstrip('/')
+            if host.startswith("http://") and "localhost" not in host and "127.0.0.1" not in host:
+                host = host.replace("http://", "https://", 1)
+            if not host or "localhost" in host or "127.0.0.1" in host or "ngrok-free.dev" in host:
+                host = "https://automated-lead-agent.onrender.com"
 
-    if not host.startswith("http://") and not host.startswith("https://"):
-        host = f"https://{host}"
+        if not host.startswith("http://") and not host.startswith("https://"):
+            host = f"https://{host}"
 
-    next_turn_url = f"{host.rstrip('/')}/api/calls/twilio/turn?session_id={session_id or ''}"
+        sid_query = f"?session_id={session_id}" if session_id else ""
+        next_turn_url = f"{host.rstrip('/')}/api/calls/twilio/turn{sid_query}"
 
-    from providers.telephony.twilio_provider import TwilioProvider
-    twiml = TwilioProvider().generate_twiml_response(
-        agent_speech=opening_text,
-        next_turn_url=next_turn_url,
-        is_final=False
-    )
-    return HttpResponse(twiml, content_type='application/xml')
+        from providers.telephony.twilio_provider import TwilioProvider
+        twiml = TwilioProvider().generate_twiml_response(
+            agent_speech=opening_text,
+            next_turn_url=next_turn_url,
+            is_final=False
+        )
+        return HttpResponse(twiml, content_type='text/xml; charset=utf-8')
+    except Exception as e:
+        print(f"[Twilio Webhook Error] {e}")
+        from providers.telephony.twilio_provider import TwilioProvider
+        twiml = TwilioProvider().generate_twiml_response(
+            "Hello! This is Priya from Digital Growth Hub. Am I speaking with the owner or manager?",
+            "",
+            is_final=False
+        )
+        return HttpResponse(twiml, content_type='text/xml; charset=utf-8')
 
 
-@api_view(['GET', 'POST'])
-@permission_classes([AllowAny])
+@csrf_exempt
+@require_http_methods(["GET", "POST"])
 def twilio_turn_webhook(request):
     """
     Twilio Speech Gather Turn Webhook: Receives SpeechResult from phone recipient,
     feeds into Gemini LLM, and returns next TwiML turn response.
     """
-    session_id = request.GET.get("session_id") or request.POST.get("session_id")
-    speech_result = (request.POST.get("SpeechResult") or request.GET.get("SpeechResult") or "").strip()
+    try:
+        session_id = request.GET.get("session_id") or request.POST.get("session_id")
+        speech_result = (request.POST.get("SpeechResult") or request.GET.get("SpeechResult") or "").strip()
 
-    call_session = CallSession.objects.filter(pk=session_id).first() if session_id else None
-    if not call_session:
+        call_session = get_call_session_safe(session_id)
+        if not call_session:
+            from providers.telephony.twilio_provider import TwilioProvider
+            twiml = TwilioProvider().generate_twiml_response(
+                "Thank you for speaking with Priya from Digital Growth Hub. Have a wonderful day.",
+                "",
+                is_final=True
+            )
+            return HttpResponse(twiml, content_type='text/xml; charset=utf-8')
+
+        calling_agent = CallingAgent()
+        if speech_result:
+            res = calling_agent.process_turn(call_session, speech_result)
+            agent_resp = res.get("agent_response", "I understand. How else can we assist your business?")
+            action = res.get("action", "continue")
+        else:
+            agent_resp = "I did not catch that clearly. Could you please repeat?"
+            action = "continue"
+
+        is_final = action in ["complete_call", "opt_out", "end_call"]
+
+        public_url = os.getenv("PUBLIC_WEBHOOK_URL", "").strip()
+        if public_url and "ngrok-free.dev" not in public_url and "localhost" not in public_url:
+            host = public_url.rstrip('/')
+        else:
+            host = request.build_absolute_uri('/').rstrip('/')
+            if host.startswith("http://") and "localhost" not in host and "127.0.0.1" not in host:
+                host = host.replace("http://", "https://", 1)
+            if not host or "localhost" in host or "127.0.0.1" in host or "ngrok-free.dev" in host:
+                host = "https://automated-lead-agent.onrender.com"
+
+        if not host.startswith("http://") and not host.startswith("https://"):
+            host = f"https://{host}"
+
+        sid_query = f"?session_id={session_id}" if session_id else ""
+        next_turn_url = f"{host.rstrip('/')}/api/calls/twilio/turn{sid_query}"
+
         from providers.telephony.twilio_provider import TwilioProvider
         twiml = TwilioProvider().generate_twiml_response(
-            "Thank you for speaking with Priya from Digital Growth Hub. Have a wonderful day.",
+            agent_speech=agent_resp,
+            next_turn_url=next_turn_url,
+            is_final=is_final
+        )
+        return HttpResponse(twiml, content_type='text/xml; charset=utf-8')
+    except Exception as e:
+        print(f"[Twilio Turn Error] {e}")
+        from providers.telephony.twilio_provider import TwilioProvider
+        twiml = TwilioProvider().generate_twiml_response(
+            "Thank you for your time today. Our team will follow up shortly. Have a wonderful day.",
             "",
             is_final=True
         )
-        return HttpResponse(twiml, content_type='application/xml')
-
-    calling_agent = CallingAgent()
-    if speech_result:
-        res = calling_agent.process_turn(call_session, speech_result)
-        agent_resp = res.get("agent_response", "I understand. How else can we assist your business?")
-        action = res.get("action", "continue")
-    else:
-        agent_resp = "I did not catch that clearly. Could you please repeat?"
-        action = "continue"
-
-    is_final = action in ["complete_call", "opt_out", "end_call"]
-
-    public_url = os.getenv("PUBLIC_WEBHOOK_URL", "").strip()
-    if public_url and "ngrok-free.dev" not in public_url and "localhost" not in public_url:
-        host = public_url.rstrip('/')
-    else:
-        host = request.build_absolute_uri('/').rstrip('/')
-        if host.startswith("http://") and "localhost" not in host and "127.0.0.1" not in host:
-            host = host.replace("http://", "https://", 1)
-        if not host or "localhost" in host or "127.0.0.1" in host or "ngrok-free.dev" in host:
-            host = "https://automated-lead-agent.onrender.com"
-
-    if not host.startswith("http://") and not host.startswith("https://"):
-        host = f"https://{host}"
-
-    next_turn_url = f"{host.rstrip('/')}/api/calls/twilio/turn?session_id={session_id}"
-
-    from providers.telephony.twilio_provider import TwilioProvider
-    twiml = TwilioProvider().generate_twiml_response(
-        agent_speech=agent_resp,
-        next_turn_url=next_turn_url,
-        is_final=is_final
-    )
-    return HttpResponse(twiml, content_type='application/xml')
+        return HttpResponse(twiml, content_type='text/xml; charset=utf-8')
 
 
-@api_view(['GET', 'POST'])
-@permission_classes([AllowAny])
+@csrf_exempt
+@require_http_methods(["GET", "POST"])
 def twilio_status_webhook(request):
     """
     Twilio Call Status Callback.
     """
-    session_id = request.GET.get("session_id") or request.POST.get("session_id")
-    call_status = request.POST.get("CallStatus") or request.GET.get("CallStatus", "completed")
-    call_duration = request.POST.get("CallDuration") or request.GET.get("CallDuration", 0)
+    try:
+        session_id = request.GET.get("session_id") or request.POST.get("session_id")
+        call_status = request.POST.get("CallStatus") or request.GET.get("CallStatus", "completed")
+        call_duration = request.POST.get("CallDuration") or request.GET.get("CallDuration", 0)
 
-    if session_id:
-        call_session = CallSession.objects.filter(pk=session_id).first()
+        call_session = get_call_session_safe(session_id)
         if call_session:
             if call_status in ["completed", "answered"]:
                 call_session.status = "completed"
                 call_session.duration_seconds = int(call_duration) if str(call_duration).isdigit() else 0
                 call_session.save(update_fields=['status', 'duration_seconds'])
-    return HttpResponse("<Response/>", content_type='application/xml')
+    except Exception as e:
+        print(f"[Twilio Status Callback Error] {e}")
+
+    return HttpResponse("<Response/>", content_type='text/xml; charset=utf-8')
 
 
 class StrategyDetailAPIView(APIView):
